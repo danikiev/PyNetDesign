@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.0.1] - 2026-09-09
+
+Bugfix release correcting the seismic moment calculation.
+
+### Fixed
+
+- the seismic moment is no longer underestimated by a factor of `2*pi*f` (#3). `calculate_M0` applied the amplitude-to-displacement spectral conversion a second time, after `retrieve_min_amps` had already applied it through `get_scaling_displacement`. Minimum detectable moment magnitudes reported by v1.0.0 were therefore too low by `dMw = (2/3)*log10(2*pi*f_r)`, which is 1.20 at a representative frequency of 10 Hz and 1.87 at 100 Hz. Because the representative frequency `f_r = min(v*Q/(pi*r), f_c)` depends on the source-receiver distance, the correction varies across the grid and changes the shape of the sensitivity maps, not only their colour scale
+- `pynetdesign.visualization` can be imported on Python 3.9 again; `plot_sensitivity_slice` used a `match` statement, which is syntax available only from Python 3.10 onwards
+
+### Changed
+
+- `calculate_M0` now documents the seismic moment relation it evaluates and states that the amplitudes it takes are the displacement amplitude spectrum, with units given for the remaining arguments
+
+### Removed
+
+- `loc_uncertainty_grid`, which called `calculate_pdf` and `get_uncertainty_from_pdf`. Neither function has ever been part of the package, so every call raised `NameError`. Location uncertainty will be reintroduced later together with the functions it depends on
+
+### Added
+
+- `pytests/test_magnitude.py`, covering the seismic moment relation, the moment magnitude conversion and its inverse, the amplitude-type scaling coefficients, the peak frequency and its corner-frequency clamp, and the DAS strain and strain-rate detection thresholds. The closed-form checks fail on the v1.0.0 formula and so guard against a recurrence of #3
+
 ## [v1.0.0] - 2025-04-01
 
 Initial public release, archived on Zenodo as
@@ -35,5 +56,6 @@ code itself is unchanged from the deposited version.
 - conda environment files for user and development installations, and Windows installation scripts
 - MIT license
 
-[Unreleased]: https://github.com/danikiev/PyNetDesign/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/danikiev/PyNetDesign/compare/v1.0.1...HEAD
+[v1.0.1]: https://github.com/danikiev/PyNetDesign/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/danikiev/PyNetDesign/releases/tag/v1.0.0
