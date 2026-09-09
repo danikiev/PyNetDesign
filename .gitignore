@@ -204,3 +204,11 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# Agents
+.agent/
+.codex*
+AGENTS.md
+CLAUDE.md
+.claude/

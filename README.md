@@ -1,6 +1,7 @@
 # PyNetDesign
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14945917.svg)](https://doi.org/10.5281/zenodo.14945917)
+[![DOI](https://zenodo.org/badge/958300487.svg)](https://zenodo.org/badge/latestdoi/958300487)
+[![Pytest](https://github.com/danikiev/PyNetDesign/actions/workflows/pytest.yml/badge.svg)](https://github.com/danikiev/PyNetDesign/actions/workflows/pytest.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellowgreen.svg)](https://github.com/danikiev/PyNetDesign/blob/main/LICENSE)
 
 PyNetDesign is an open-source Python framework for testing and designing microseismic monitoring networks for homogeneous velocity models.
@@ -197,7 +198,12 @@ All notable changes are documented in [CHANGELOG.md](CHANGELOG.md), following
 
 ## Citing
 
-If you use PyNetDesign in your research, please cite it as follows:
+If you use PyNetDesign in your research, please cite the release you used. The DOI badge
+at the top of this page always resolves to the most recently archived release, and the
+Zenodo record of each release also carries its own version DOI.
+
+Version 1.0.0 was deposited manually, before the automated GitHub–Zenodo integration was
+enabled, so it has a DOI of its own:
 
 **Anikiev, D. (2025).** *PyNetDesign: a Python framework for microseismic monitoring network design* (Version v1.0.0) [Computer software]. Zenodo.
 <https://doi.org/10.5281/zenodo.14945917>
@@ -216,6 +222,11 @@ In BibTeX format:
    url       = {https://github.com/danikiev/PyNetDesign}
 }
 ```
+
+**Note:** magnitudes computed with version 1.0.0 are affected by an error in the seismic
+moment calculation that was corrected in version 1.0.1. If you are citing or reusing
+results obtained with 1.0.0, please see [CHANGELOG.md](CHANGELOG.md) and issue
+[#3](https://github.com/danikiev/PyNetDesign/issues/3).
 
 ## License
 

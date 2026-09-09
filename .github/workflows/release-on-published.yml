@@ -1,0 +1,75 @@
+name: Release On Published
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-tag:
+    uses: ./.github/workflows/validate-tag.yml
+    with:
+      tag: ${{ github.event.release.tag_name || inputs.tag }}
+    permissions:
+      contents: read
+
+  validate-zenodo:
+    needs: validate-tag
+    uses: ./.github/workflows/validate-zenodo.yml
+    with:
+      ref: ${{ needs.validate-tag.outputs.ref }}
+    permissions:
+      contents: read
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [validate-tag, validate-zenodo]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.validate-tag.outputs.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Verify distribution version
+        shell: bash
+        run: |
+          expected="${{ needs.validate-tag.outputs.version }}"
+          test -f "dist/pynetdesign-${expected}.tar.gz" || {
+            echo "Expected sdist dist/pynetdesign-${expected}.tar.gz was not built"
+            ls -la dist
+            exit 1
+          }
+          compgen -G "dist/pynetdesign-${expected}-*.whl" > /dev/null || {
+            echo "Expected wheel dist/pynetdesign-${expected}-*.whl was not built"
+            ls -la dist
+            exit 1
+          }
+
+      - name: Upload built artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-release-published
+          path: dist/

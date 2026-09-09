@@ -165,16 +165,15 @@ def plot_sensitivity_slice(sens_data: np.ndarray,
         levels = plt_levels
            
     # Plot the sensitivity data as a heatmap in desired style    
-    match plt_style:
-        case "contourf":
-            im = ax.contourf(ci1,ci2,pdata, levels, cmap=cmap, extent=extent)
-        case "imshow":
-            im = ax.imshow(pdata,        
-                           origin='lower',
-                           extent=extent,
-                           cmap=cmap)
-        case _:
-            raise ValueError("Unknown plot style: " + plt_style)
+    if plt_style == "contourf":
+        im = ax.contourf(ci1,ci2,pdata, levels, cmap=cmap, extent=extent)
+    elif plt_style == "imshow":
+        im = ax.imshow(pdata,
+                       origin='lower',
+                       extent=extent,
+                       cmap=cmap)
+    else:
+        raise ValueError("Unknown plot style: " + plt_style)
 
     # Plot contours
     if plt_contours:   

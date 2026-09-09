@@ -1,0 +1,68 @@
+name: Validate Tag
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+    outputs:
+      tag:
+        description: "Validated tag name"
+        value: ${{ jobs.validate.outputs.tag }}
+      ref:
+        description: "Validated tag ref"
+        value: ${{ jobs.validate.outputs.ref }}
+      version:
+        description: "Validated version without leading v"
+        value: ${{ jobs.validate.outputs.version }}
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+      ref: ${{ steps.tag.outputs.ref }}
+      version: ${{ steps.tag.outputs.version }}
+
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Validate strict semver tag
+        id: tag
+        shell: bash
+        run: |
+          TAG="${{ inputs.tag }}"
+          if [[ "$TAG" == refs/tags/* ]]; then
+            TAG="${TAG##*/}"
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid tag '$TAG'. Expected strict semver format: vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "ref=refs/tags/$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure tag points to main history
+        shell: bash
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          git fetch origin main
+          TAG_COMMIT="$(git rev-list -n 1 "$TAG")"
+          if [[ -z "$TAG_COMMIT" ]]; then
+            echo "Unable to resolve commit for tag '$TAG'"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+            echo "Tag '$TAG' does not point to a commit contained in main"
+            exit 1
+          fi
