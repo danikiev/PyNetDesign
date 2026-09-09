@@ -1,6 +1,7 @@
 # PyNetDesign
 
-[![DOI](https://zenodo.org/badge/958300487.svg)](https://zenodo.org/badge/latestdoi/958300487)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14945917.svg)](https://doi.org/10.5281/zenodo.14945917)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellowgreen.svg)](https://github.com/danikiev/PyNetDesign/blob/main/LICENSE)
 
 PyNetDesign is an open-source Python framework for testing and designing microseismic monitoring networks for homogeneous velocity models.
 
@@ -187,3 +188,35 @@ or, to build also the PDF file:
 ```cmd
 build-docs.bat -pdf
 ```
+
+## Changelog
+
+All notable changes are documented in [CHANGELOG.md](CHANGELOG.md), following
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Citing
+
+If you use PyNetDesign in your research, please cite it as follows:
+
+**Anikiev, D. (2025).** *PyNetDesign: a Python framework for microseismic monitoring network design* (Version v1.0.0) [Computer software]. Zenodo.
+<https://doi.org/10.5281/zenodo.14945917>
+
+In BibTeX format:
+
+```bibtex
+@software{Anikiev2025PyNetDesign,
+   author    = {Anikiev, Denis},
+   title     = {{PyNetDesign}: a {P}ython framework for microseismic monitoring network design},
+   year      = {2025},
+   publisher = {Zenodo},
+   version   = {v1.0.0},
+   license   = {MIT},
+   doi       = {10.5281/zenodo.14945917},
+   url       = {https://github.com/danikiev/PyNetDesign}
+}
+```
+
+## License
+
+PyNetDesign is released under the MIT License. See [LICENSE](LICENSE) for details.
