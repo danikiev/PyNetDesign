@@ -1,0 +1,35 @@
+name: Validate Zenodo Metadata
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Optional branch, tag, or SHA to validate"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Validate Zenodo Metadata
+        uses: vsoch/zenodo-validator@main
+        with:
+          path: ".zenodo.json"
