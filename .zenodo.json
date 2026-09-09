@@ -1,0 +1,29 @@
+{
+    "title": "PyNetDesign: a Python framework for microseismic monitoring network design",
+    "version": "1.0.0",
+    "license": "MIT",
+    "upload_type": "software",
+    "description": "PyNetDesign is an open-source Python library that provides a simple and functional framework for designing and testing microseismic monitoring networks.",
+    "keywords": [
+        "earthquakes",
+        "microseismicity",
+        "microseismic monitoring",
+        "monitoring network design",
+        "microseismic imaging",
+        "passive seismic",
+        "Earth and related environmental sciences",
+        "Geophysics",
+        "Seismology",
+        "Signal processing"
+    ],
+    "access_right": "open",
+    "language": "eng",
+    "creators": [
+        {
+            "affiliation": "Center for Integrative Petroleum Research, King Fahd University of Petroleum and Minerals, Dhahran, Saudi Arabia",
+            "name": "Anikiev, Denis",
+            "orcid": "0000-0002-4729-2659",
+            "type": "contactperson"
+        }
+    ]
+}
