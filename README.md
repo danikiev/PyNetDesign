@@ -198,30 +198,52 @@ All notable changes are documented in [CHANGELOG.md](CHANGELOG.md), following
 
 ## Citing
 
-If you use PyNetDesign in your research, please cite the release you used. The DOI badge
-at the top of this page always resolves to the most recently archived release, and the
-Zenodo record of each release also carries its own version DOI.
+If you use PyNetDesign in your research, please cite it as follows:
 
-Version 1.0.0 was deposited manually, before the automated GitHub–Zenodo integration was
-enabled, so it has a DOI of its own:
-
-**Anikiev, D. (2025).** *PyNetDesign: a Python framework for microseismic monitoring network design* (Version v1.0.0) [Computer software]. Zenodo.
-<https://doi.org/10.5281/zenodo.14945917>
+**Anikiev, D. (2026).** *PyNetDesign: a Python framework for microseismic monitoring network design.* Zenodo.
+<https://doi.org/10.5281/zenodo.22695001>
 
 In BibTeX format:
 
 ```bibtex
-@software{Anikiev2025PyNetDesign,
+@software{Anikiev2026PyNetDesign,
    author    = {Anikiev, Denis},
    title     = {{PyNetDesign}: a {P}ython framework for microseismic monitoring network design},
-   year      = {2025},
+   year      = {2026},
    publisher = {Zenodo},
-   version   = {v1.0.0},
-   license   = {MIT},
-   doi       = {10.5281/zenodo.14945917},
+   doi       = {10.5281/zenodo.22695001},
    url       = {https://github.com/danikiev/PyNetDesign}
 }
 ```
+
+The DOI above represents all versions and will always resolve to the latest one.
+To cite a particular version of PyNetDesign, please use the following format, e.g. for
+version 1.0.1:
+
+**Anikiev, D. (2026).** *PyNetDesign: a Python framework for microseismic monitoring network design (1.0.1).* Zenodo.
+<https://doi.org/10.5281/zenodo.22695002>
+
+In BibTeX format:
+
+```bibtex
+@software{Anikiev2026PyNetDesignVersion,
+   author    = {Anikiev, Denis},
+   title     = {{PyNetDesign}: a {P}ython framework for microseismic monitoring network design},
+   year      = {2026},
+   publisher = {Zenodo},
+   version   = {1.0.1},
+   license   = {MIT},
+   doi       = {10.5281/zenodo.22695002},
+   url       = {https://github.com/danikiev/PyNetDesign}
+}
+```
+
+### Earlier release
+
+Version 1.0.0 was deposited manually, before the automated GitHub–Zenodo integration was
+enabled, and therefore belongs to a separate Zenodo lineage. It is cross-linked to the
+current record and remains citable on its own:
+<https://doi.org/10.5281/zenodo.14945917>
 
 **Note:** magnitudes computed with version 1.0.0 are affected by an error in the seismic
 moment calculation that was corrected in version 1.0.1. If you are citing or reusing
