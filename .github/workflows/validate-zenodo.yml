@@ -27,7 +27,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.ref || github.ref }}
+          # Only override the ref when one is supplied by workflow_call or
+          # workflow_dispatch. Leaving it empty for push and pull_request lets
+          # actions/checkout resolve the event itself, pinning github.sha as well
+          # as the ref name. Passing refs/pull/<n>/merge explicitly breaks as soon
+          # as the pull request is merged, because GitHub deletes that ref.
+          ref: ${{ inputs.ref }}
 
       - name: Validate Zenodo Metadata
         uses: vsoch/zenodo-validator@main
