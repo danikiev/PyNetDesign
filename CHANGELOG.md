@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - projection of single vertical-component stations onto the vertical axis, driven by a `Components` column; three-component stations record the full vector and are unaffected
 - per-station free surface amplification through `compute_free_surface_coefficients`, with `fs_mode`, `fs_level` and `fs_deviation` parameters and an optional `Surface` column carrying per-station weights
 - helpers `normalize_wave_mode`, `wave_mode_phases`, `wave_mode_has_p`, `wave_mode_has_s`, `wave_mode_s_phases`, `resolve_radiation_pattern`, `check_min_stations` and `geometry_requires_receiver_projection`
+- `pynetdesign.modelling.geometry`, a module of synthetic geometry builders: `generate_geometry` dispatches to `generate_borehole_geometry` for vertical, inclined and deviated boreholes, to `generate_surface_geometry` for line, zigzag, L, square and double-line layouts, and to `generate_darkfiber_geometry` for a continuous dark-fibre path with turns. Each returns geometry text lines that `read_geometry` can read back, including a depth-dependent noise profile for boreholes
+- `save_geometry`, writing either generated text lines or a geometry DataFrame back to the `read_geometry` format, with `Z` restored to an elevation so that a round trip is lossless
+- `decimate_geometry`, keeping every n-th channel while preserving the metadata, for studying the effect of channel spacing on a dense array
+- `read_geometry` reads the optional `Surface` and `Components` columns, so the per-station free surface weights and the single vertical component stations introduced above can be described in a geometry file
+- `read_geometry` records the path it read in `attrs['file_path']`
 - test modules covering wave modes and radiation patterns, receiver projection, the free surface correction, network detectability, and phase-resolved sensitivity end to end
 
 ### Changed
@@ -33,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - the station-count guard in `mag_detectable` compared against the grid axis instead of the station axis, so a request for more receivers than the geometry has was not reported clearly
+- the default dark-fibre turn distances are now fractions of the cable length, at one quarter, one half and three quarters, so that `generate_geometry(mode='darkfiber')` works for any cable. The previous fixed distances of 6, 12 and 18 km exceeded the default cable length and made the default call fail; for a 24 km cable the layout is unchanged
 
 ## [v1.0.1] - 2026-09-10
 
