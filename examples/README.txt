@@ -18,7 +18,7 @@ model:
 4. Combined geometry with 4 surface stations and DAS in a vertical borehole
 5. Geometry with a DAS cable in an inclined borehole
 6. Geometry with a DAS cable in a twice inclined borehole
-7. Geometry with a DAS cable in a deep vertical borehole and noise constant along the borehole
+7. A 1-km-long DAS cable in a vertical borehole with 1 m channel spacing and constant noise, the homogeneous benchmark of a downhole DAS monitoring study
 8. Geometry with a DAS cable in a deep vertical borehole and noise decreasing with depth
 9. Geometry with a single station above a DAS cable in a deep vertical borehole and noise constant along the borehole
 10. Geometry with a single station above a DAS cable in a deep vertical borehole and noise decreasing with depth

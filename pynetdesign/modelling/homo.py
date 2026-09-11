@@ -437,8 +437,13 @@ def calculate_M0(density: float,
 
     # Get peak frequency and amplitude scaling
     if f is None:
-        # Get fpeak
-        fpeak = 1/(np.pi*t_star)
+        # Get fpeak. A grid point that coincides with a receiver gives r = 0, hence
+        # t* = 0 and an infinite peak frequency, which the clamp below turns into the
+        # corner frequency. That is the intended answer, so the division is allowed to
+        # reach infinity quietly rather than warning about it. Coincidence is easy to
+        # hit with a dense DAS cable, where every channel sits on a grid line.
+        with np.errstate(divide='ignore'):
+            fpeak = 1/(np.pi*t_star)
         # Limit to corner frequency
         fpeak = np.minimum(fpeak,fcorner)
         # Final scaling coefficient(s)

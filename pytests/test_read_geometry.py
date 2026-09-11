@@ -3,13 +3,18 @@ import pandas as pd
 import numpy as np
 import tempfile
 import os
+from pathlib import Path
 
 from pynetdesign.modelling.io import read_geometry
 
+# Sample files shipped with the repository, resolved from this file rather than from
+# the working directory, so that the tests pass wherever pytest is invoked from
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 # Define paths to existing sample files with expected values
 EXISTING_FILES = [
-    ("data/stations/local_geometry.txt", None, "m/s", "velocity","local"),
-    ("data/stations/global_geometry.txt", None, "m/s^2", "acceleration","global")
+    (str(REPO_ROOT / "data/stations/local_geometry.txt"), None, "m/s", "velocity","local"),
+    (str(REPO_ROOT / "data/stations/global_geometry.txt"), None, "m/s^2", "acceleration","global")
 ]
 
 @pytest.fixture(params=[

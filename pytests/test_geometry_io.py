@@ -205,6 +205,35 @@ class TestOptionalColumns:
         with pytest.raises(ValueError):
             save_geometry(df, tmp_path / "bad.txt")
 
+    def test_recovered_das_is_unaffected_by_inherited_components(self, tmp_path, written):
+        """Combining widens the table; recovering the DAS part must not change it.
+
+        A station geometry may declare Components, which a DAS geometry cannot have, so
+        combining the two leaves the column empty on the DAS rows and recovery carries
+        it along. That must stay invisible: the recovered geometry has to write back
+        without the column, so that it reads again as the DAS geometry it started as.
+        """
+        stations = written([STATION_HEADER + "\tComponents", "A\t0\t0\t0\t1e-10\tZ"],
+                           "stations.txt")
+        das_lines = [
+            "Northing(m)\tEasting(m)\tElevation(m)\tNoiseLevel(1/s)\tGaugeLength=10(m)",
+            "0\t0\t-10\t1e-9", "0\t0\t-20\t1e-9",
+        ]
+        das = written(das_lines, "das.txt")
+        combined = combine_geometry(stations, das, names=["stations", "das"])
+        assert list(combined.recover("stations")['Components']) == ['Z']
+
+        recovered = combined.recover("das")
+        out = tmp_path / "recovered_das.txt"
+        save_geometry(recovered, out)
+        back = read_geometry(str(out))
+
+        assert 'Components' not in back.columns
+        np.testing.assert_allclose(back['Z'], das['Z'])
+        np.testing.assert_allclose(back['NoiseLevel'], das['NoiseLevel'])
+        assert back.attrs['noise_type'] == das.attrs['noise_type']
+        assert back.attrs['gauge_length'] == das.attrs['gauge_length']
+
 
 class TestDecimate:
     def test_keeps_every_nth_station(self, written):
