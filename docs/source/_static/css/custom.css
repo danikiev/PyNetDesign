@@ -88,3 +88,19 @@ div.math {
     background: transparent !important;
     box-shadow: none !important;
 }
+
+/* Hover state for the header logo: swap in the brand's own "orange only" lockup, which
+   the brand guide lists beside the colour and gray-only stems. The two files carry the
+   same geometry at the same viewBox and differ only in their fill and stroke colours, so
+   the mark neither moves nor resizes.
+
+   This replaces the image rather than revealing a second copy underneath it. Stacking
+   the two fringes the result: glyph edges are anti-aliased, so every edge pixel of the
+   top logo is partly transparent and lets the layer behind show through, drawing an
+   orange halo around the gray wordmark even at rest. Only one layer is ever painted
+   here, so there is no halo and no crossfade to blend. Browsers that do not replace
+   content this way simply leave the logo unchanged on hover */
+.navbar-brand.logo:hover .logo__image {
+    content: url("../pynetdesign-logo-orange.svg");
+}
+
