@@ -1,8 +1,6 @@
-# PyNetDesign
-
-<p align="center">
+<h1 align="center">
   <img src="docs/source/_static/pynetdesign-logo.svg" alt="PyNetDesign logo" width="520">
-</p>
+</h1><br>
 
 [![DOI](https://zenodo.org/badge/958300487.svg)](https://zenodo.org/badge/latestdoi/958300487)
 [![Pytest](https://github.com/danikiev/PyNetDesign/actions/workflows/pytest.yml/badge.svg)](https://github.com/danikiev/PyNetDesign/actions/workflows/pytest.yml)
