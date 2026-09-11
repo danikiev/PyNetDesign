@@ -1,0 +1,116 @@
+name: Docs
+
+on:
+  push:
+    branches: ["main", "dev"]
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Optional branch, tag, or SHA to build"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Only override the ref when one is supplied by workflow_call or
+          # workflow_dispatch; leaving it empty lets actions/checkout resolve the event.
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Fetch tags for setuptools_scm
+        run: |
+          git fetch --force --tags
+          git describe --tags --long --always
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install system dependencies for the PDF build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            latexmk \
+            texlive-luatex \
+            texlive-latex-extra \
+            texlive-fonts-recommended \
+            texlive-pictures \
+            fonts-freefont-otf
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[docs]
+
+      - name: Verify release version
+        if: >-
+          startsWith(github.ref, 'refs/tags/v') ||
+          startsWith(inputs.ref, 'refs/tags/v') ||
+          startsWith(inputs.ref, 'v')
+        shell: bash
+        env:
+          RELEASE_REF: ${{ inputs.ref || github.ref }}
+        run: |
+          tag="${RELEASE_REF##*/}"
+          expected="${tag#v}"
+          actual="$(python -c "from importlib.metadata import version; print(version('pynetdesign').split('+', 1)[0])")"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "Expected release version $expected from tag $tag, got $actual"
+            git describe --tags --long --always
+            exit 1
+          fi
+
+      - name: Build HTML and PDF docs
+        env:
+          MPLBACKEND: Agg
+        # Invoked through bash so the build does not depend on the executable bit
+        run: bash build-docs.sh --pdf
+
+      - name: Upload PDF artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: pynetdesign-docs-pdf
+          path: docs/build/latex/pynetdesign.pdf
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v6
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/build/html
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+    needs: build-docs
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

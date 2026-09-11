@@ -3,12 +3,14 @@
 Examples
 --------
 
-This chapter showcases PyNetDesignPro's capabilities through practical, hands-on scenarios. 
-Whether you're setting up a seismic network, analyzing magnitude sensitivity or location accuracy, or visualizing results, these examples provide step-by-step guidance to help you effectively use PyNetDesignPro. 
-Designed to be both educational and practical, this chapter bridges the gap between theoretical concepts and real-world applications. 
-Explore these examples to unlock the full potential of PyNetDesignPro in your projects.
+This chapter showcases the capabilities of PyNetDesign through practical, hands-on
+scenarios. Whether you are laying out a monitoring network, evaluating its magnitude
+sensitivity or visualizing the result, these examples give step-by-step guidance.
+Designed to be both educational and practical, the chapter bridges the gap between the
+theory of the :ref:`methodology` chapter and real-world application.
 
-Examples cover 10 test monitoring network geometries for both homogeneous and layered velocity models:
+The examples cover ten test monitoring network geometries in a homogeneous velocity
+model:
 
 1. Simple station geometry with 3 surface stations in the form of a triangle, from :cite:t:`Hallo2012`
 2. Simple station geometry with 4 surface stations in the form of a triangle with 1 station in the center
@@ -20,8 +22,6 @@ Examples cover 10 test monitoring network geometries for both homogeneous and la
 8. Geometry with a DAS cable in a deep vertical borehole and noise decreasing with depth
 9. Geometry with a single station above a DAS cable in a deep vertical borehole and noise constant along the borehole
 10. Geometry with a single station above a DAS cable in a deep vertical borehole and noise decreasing with depth
-
-Besides, there are also an example that showcase the use of raytracing.
 
 .. only:: html
 

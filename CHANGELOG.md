@@ -22,6 +22,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `read_geometry` reads the optional `Surface` and `Components` columns, so the per-station free surface weights and the single vertical component stations introduced above can be described in a geometry file
 - `read_geometry` records the path it read in `attrs['file_path']`
 - test modules covering wave modes and radiation patterns, receiver projection, the free surface correction, network detectability, and phase-resolved sensitivity end to end
+- Sphinx documentation under `docs/`, published to GitHub Pages at <https://danikiev.github.io/PyNetDesign/>, with an overview, a getting-started guide covering installation and the input file formats, a methodology chapter, an example gallery and a generated API reference
+- `methodology.rst` documenting the theory actually implemented: spectral conventions, the attenuation operator, the peak frequency, the detection threshold and its conversion coefficients, the free surface correction, receiver projection and DAS directionality, the radiation pattern with the full root-mean-square derivation, the homogeneous seismic moment relation with a standalone derivation from the far-field point source, and the network detectability criterion
+- `docs/source/references.bib` with the seven works cited from the docstrings and the methodology, so the `:cite:` roles added earlier now resolve
+- `citing`, `contributing` and `credits` documentation pages, plus a changelog page that is generated from `CHANGELOG.md` when the documentation is built, so the changelog has a single source and the generated page is not committed
+- `docs.yml` workflow building the documentation on every push and deploying it to GitHub Pages from `main` and from release tags, including a check that the built version matches the tag
+- `push-tag.yml` workflow, so that pushing a `vX.Y.Z` tag validates it and publishes versioned documentation
+- `build-docs.bat` and `build-docs.sh` for building the documentation, and `serve-docs.bat` and `serve-docs.sh` for viewing it locally. `serve-docs` rebuilds incrementally before serving, so only the pages that changed are regenerated, and accepts `--port` and `--no-build`. Both accept `SPHINXOPTS`, and neither needs `make`: they call `python -m sphinx -M` directly. Both also take `--pdf`, which builds the PDF edition and places it where the documentation links to it
+- a PDF edition of the documentation, produced from the same sources through lualatex and linked from the site header and the front page, so the whole manual can be read offline as one file. `docs.yml` builds it on every run, publishes it with the site and keeps a copy as a workflow artifact
+- `install.sh` and `uninstall.sh`, the Linux and macOS counterparts of the existing Windows scripts. `install.sh` takes `--dev` or `--no-dev` to answer the development-tools question in advance, and `uninstall.sh` takes `--yes`
+- branding from the PyNetDesign brand package: the logo in the documentation header and the README, and the full browser icon set, comprising `favicon.ico`, a scalable `favicon.svg`, an Apple touch icon and a web app manifest. Both themes serve the same transparent logo, the one the README uses, so the mark keeps its own clear space and is never filtered or recoloured by the theme, because the brand gray is fixed and must not be inverted
+- brand colours in the documentation stylesheet. Signal Orange reaches only 2.87:1 against white, so link text in light mode is darkened to `#B84806`, which measures 4.81:1 against the light page surface, while the unmodified orange is used on the dark surfaces where it measures 5.17:1
 
 ### Changed
 
@@ -29,16 +40,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **the free surface correction is applied per receiver.** In 1.0.x `free_surface=True` amplified every receiver irrespective of its depth; it now applies only to receivers at the free surface, so geometries mixing surface and downhole receivers are treated correctly. The default mode is `'auto'`, which derives the indicator from the receiver depths or from the `Surface` column when present
 - `DetectionParameters` takes `fs_mode`, `fs_level` and `fs_deviation`; the `free_surface` flag is deprecated but still accepted, mapping to `fs_mode='on'` or `'off'`
 - `mag_detectable` accepts the phase-resolved wave modes
+- the methodology and credits pages close with a `References` section rather than a rubric, so the bibliography is reachable from the table of contents
+- the credits page acknowledges the works the implementation rests on individually, adding Aki and Richards (2002) for the far-field point source, the radiation-pattern convention and the free surface, and Cerveny (2001) for the ray-theoretical global absorption factor
 - receiver projection is decided from the geometry itself, so `use_station_directionality` is only needed to force tangent projection for a station geometry
+- **a single environment file.** `environment.yml` now pins only the interpreter, and every dependency is declared in `pyproject.toml`, as runtime `dependencies` or in the `dev` and `docs` optional groups. Install with `conda env create -f environment.yml -n pnd` followed by `pip install -e .` or `pip install -e ".[dev,docs]"`. This removes the duplicated dependency lists, which had drifted: they advertised `scipy` and `plotly`, neither of which is imported, and omitted `cmcrameri`, which is required
+- `pyproject.toml` declares `requires-python = ">=3.9,<3.13"`, the MIT license and its file, project URLs, and a fuller set of keywords and classifiers; Python 3.8 is no longer advertised, since it is not tested and the package needs 3.9
+- `install.bat` creates one environment, `pnd`, from the single file and asks whether to add the development tools, rather than choosing between two conda files and two environment names
+- the README documents the documentation site and the PDF download, corrects the Python range and the dependency list, and fixes the case of the clone URL
 
 ### Removed
 
+- `environment-dev.yml`, superseded by the `dev` and `docs` optional dependency groups
 - the `rays_p` and `rays_s` arguments of `get_ray_station_directionality`, which could never be populated because the homogeneous package has no ray tracer. The function is deprecated in favour of `get_phase_station_directionality` and now emits a `DeprecationWarning`
 
 ### Fixed
 
+- the `.. only:: html` blocks on the front page held their content at the wrong indentation, so the directive guarded nothing and the LaTeX build was asked to typeset icon cards it cannot render
+- `examples/README.txt` promised a raytracing example that this package does not ship, and carried a stale product name
 - the station-count guard in `mag_detectable` compared against the grid axis instead of the station axis, so a request for more receivers than the geometry has was not reported clearly
 - the default dark-fibre turn distances are now fractions of the cable length, at one quarter, one half and three quarters, so that `generate_geometry(mode='darkfiber')` works for any cable. The previous fixed distances of 6, 12 and 18 km exceeded the default cable length and made the default call fail; for a 24 km cable the layout is unchanged
+- `uninstall.bat` could never remove an environment. `ENV_NAME` and `CONFIRM` were assigned and read inside the same `for` block, so `cmd` substituted their pre-loop empty values: the script printed an empty environment name and always took the skip branch regardless of the answer. It now uses delayed expansion, and matches environment names anchored to the start of the line so that an unrelated environment cannot be matched through its path
 
 ## [v1.0.1] - 2026-09-10
 

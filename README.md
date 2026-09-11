@@ -1,7 +1,12 @@
 # PyNetDesign
 
+<p align="center">
+  <img src="docs/source/_static/pynetdesign-logo.svg" alt="PyNetDesign logo" width="520">
+</p>
+
 [![DOI](https://zenodo.org/badge/958300487.svg)](https://zenodo.org/badge/latestdoi/958300487)
 [![Pytest](https://github.com/danikiev/PyNetDesign/actions/workflows/pytest.yml/badge.svg)](https://github.com/danikiev/PyNetDesign/actions/workflows/pytest.yml)
+[![Docs](https://github.com/danikiev/PyNetDesign/actions/workflows/docs.yml/badge.svg)](https://github.com/danikiev/PyNetDesign/actions/workflows/docs.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellowgreen.svg)](https://github.com/danikiev/PyNetDesign/blob/main/LICENSE)
 
 PyNetDesign is an open-source Python framework for testing and designing microseismic monitoring networks for homogeneous velocity models.
@@ -18,15 +23,16 @@ To clone the git repository use [Git](https://git-scm.com/), a free and open sou
 
 Installation requires [Conda](https://conda.io) package manager, e.g. one can use [miniforge](https://github.com/conda-forge/miniforge) implementation.
 
-PyNetDesign works with 3.8 <= `python` <= 3.12 and requires [`pip`](https://pypi.org/project/pip/).
+PyNetDesign works with 3.9 <= `python` <= 3.12 and requires [`pip`](https://pypi.org/project/pip/).
 
-Some key dependencies:
+The runtime dependencies are declared in `pyproject.toml`:
 
 - [`numpy`](https://www.numpy.org/)
-- [`scipy`](https://scipy.org/)
 - [`pandas`](https://pandas.pydata.org/)
 - [`matplotlib`](https://matplotlib.org/)
-- [`plotly`](https://plotly.com/python/)
+- [`cmcrameri`](https://pypi.org/project/cmcrameri/)
+
+Two optional groups are available: `dev` adds `pytest` and a Jupyter stack, and `docs` adds the Sphinx toolchain.
 
 The author is incredibly grateful to the developers of these and other packages used by PyNetDesign.
 
@@ -35,15 +41,15 @@ The author is incredibly grateful to the developers of these and other packages 
 First clone the git repository using
 
 ```sh
-git clone https://github.com/danikiev/pynetdesign.git
+git clone https://github.com/danikiev/PyNetDesign.git
 ```
 
 ### Install
 
-The best way is to create a new conda environment with all the required packages:
+`environment.yml` pins only the interpreter, so create the environment and give it a name:
 
 ```bash
-conda env create -f environment.yml
+conda env create -f environment.yml -n pnd
 ```
 
 **Note:** to speed up creation of the environment, use `mamba` instead of `conda`, which is a faster alternative.
@@ -64,33 +70,31 @@ pip install -e .
 
 For quick installation, you can use the specially designed installation script which implement all of the above mentioned steps.
 
-On Windows, in miniforge prompt run:
-
-```cmd
-install.bat
+```bash
+./install.sh            # Linux, macOS
+install.bat             # Windows, from a Miniforge prompt
 ```
 
-and select option 1 (user environment).
+It creates the `pnd` environment and asks whether to add the development tools.
+Pass `--dev` or `--no-dev` to `install.sh` to answer in advance.
 
 ### Installation for development
 
-Development environment includes additional packages for testing and building documentation.
-
-For development please use `environment-dev.yml` instead of `environment.yml`:
+The development install adds the testing and documentation tools through the optional
+dependency groups declared in `pyproject.toml`:
 
 ```bash
-conda env create -f environment-dev.yml
-conda activate pnd-dev
-pip install -e .
+pip install -e ".[dev,docs]"
 ```
 
-On Windows you can use `install.bat` and select option 2 (developer environment):
+Or answer `y` when the installer asks whether to install the development tools:
 
-```cmd
-install.bat
+```bash
+./install.sh --dev      # Linux, macOS
+install.bat             # Windows, then answer y
 ```
 
-Developer environment includes more packages, e.g. for building [local documentation](#build-documentation-locally),
+The `docs` group is what you need for building the [local documentation](#build-documentation-locally).
 
 ### Uninstall
 
@@ -106,23 +110,21 @@ and then remove the appropriate environment:
 conda remove -n pnd --all
 ```
 
-or
+You can also run the uninstallation script:
 
 ```bash
-conda remove -n pnd-dev --all
+./uninstall.sh          # Linux, macOS
+uninstall.bat           # Windows
 ```
 
-On Windows you can also run the uninstallation script:
-
-```cmd
-uninstall.bat
-```
-
-It will search for all associated Conda environments matching `pnd*` and will ask to delete each of them.
+It finds every Conda environment whose name starts with `pnd` and asks about each one.
+Pass `--yes` to `uninstall.sh` to skip the questions.
 
 ## Documentation
 
-The latest stable documentation based on [Sphinx](https://www.sphinx-doc.org) is available online at: <>.
+The latest documentation, built with [Sphinx](https://www.sphinx-doc.org), is available at
+<https://danikiev.github.io/PyNetDesign/>, and as a single downloadable PDF at
+<https://danikiev.github.io/PyNetDesign/_static/pynetdesign.pdf>.
 
 It features:
 
@@ -133,61 +135,58 @@ It features:
 
 ### Build documentation locally
 
-Packages required for building of the documentation are included to the development environment.
-To install it in the normal installation environment you have to additionally run:
-
-```cmd
-conda install sphinx pydata-sphinx-theme sphinx-gallery numpydoc
-```
-
-and
-
-```cmd
-pip install setuptools_scm
-```
-
-To build the documentation locally run:
+The documentation tools are installed with the `docs` extra:
 
 ```bash
-cd docs
-make html
+pip install -e ".[docs]"
 ```
 
-If you want to rebuild the documentation:
+Build it with the helper script, which does a clean build:
 
 ```bash
-cd docs
-make clean
-make html
+./build-docs.sh          # Linux, macOS
+build-docs.bat           # Windows
 ```
 
-To build website also the PDF file of the website, use:
+Then view it in a browser. `serve-docs` rebuilds first, incrementally, so only the
+pages that actually changed are regenerated:
 
 ```bash
-make latexpdf
+./serve-docs.sh          # Linux, macOS
+serve-docs.bat           # Windows
 ```
 
-After a successful build, one can serve the documentation website locally:
+and open <http://localhost:8000>. Useful options:
+
+| Option | Effect |
+| --- | --- |
+| `-p PORT`, `--port PORT` | serve on another port |
+| `-n`, `--no-build` | serve what is already built, without rebuilding |
+| `-i`, `--incremental` (`build-docs`) | skip the clean and rebuild only what changed |
+| `--pdf` (`-pdf` on Windows) | also build the PDF, into `docs/build/html/_static` |
+
+The PDF needs a LaTeX installation providing `lualatex` and `latexmk`; the scripts check
+for both before starting and say so if either is missing.
+
+Extra Sphinx options can be passed through `SPHINXOPTS`, for instance to build the
+pages without running the examples:
 
 ```bash
-cd build/html
-python -m http.server
+SPHINXOPTS="-D plot_gallery=0" ./build-docs.sh    # Linux, macOS
+set SPHINXOPTS=-D plot_gallery=0 && build-docs.bat  # Windows
 ```
 
-and open in browser: <http://localhost:8000>.
+Equivalently, without the scripts:
 
-**Note:** check the exact port number in the output
-
-On Windows you can also use the script:
-
-```cmd
-build-docs.bat
+```bash
+python -m sphinx -M html docs/source docs/build
 ```
 
-or, to build also the PDF file:
+and, for the PDF, generate the LaTeX sources and run `latexmk` on them:
 
-```cmd
-build-docs.bat -pdf
+```bash
+python -m sphinx -M latex docs/source docs/build
+cd docs/build/latex && latexmk -pdf -dvi- -ps- pynetdesign.tex
 ```
 
 ## Changelog

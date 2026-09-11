@@ -15,6 +15,7 @@ pytest-results.xml
 # Documentation #
 docs/build
 docs/source/api/generated
+docs/source/changelog.rst
 docs/source/gallery
 docs/source/examples
 docs/source/tutorials

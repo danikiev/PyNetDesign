@@ -1,18 +1,12 @@
-name: pnd
-channels:  
-  - conda-forge  
-  - plotly
+# Minimal environment: it pins only the interpreter.
+# All package dependencies are declared in pyproject.toml, so install with:
+#     conda env create -f environment.yml -n pnd
+#     conda activate pnd
+#     pip install -e .              # runtime only
+#     pip install -e ".[dev,docs]"  # plus tests and documentation
+channels:
+  - conda-forge
   - defaults
 dependencies:
-  - python>=3.8, <3.13
+  - python>=3.9, <3.13
   - pip
-  - numpy>=1.20, <2
-  - scipy
-  - pandas
-  - matplotlib
-  - plotly::plotly
-  - cmcrameri
-  - ipython  
-  - jupyter
-  - ipywidgets
-  

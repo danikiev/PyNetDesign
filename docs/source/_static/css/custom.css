@@ -1,0 +1,90 @@
+/* PyNetDesign brand styling for the pydata-sphinx-theme.
+ *
+ * Palette (brand guide v1.0):
+ *   Network Gray  #5F6160
+ *   Signal Orange #FF6A1A
+ *   White         #FFFFFF
+ * Website surfaces: #F3F4F5 light page, #FFFFFF light card,
+ *                   #29313D dark card header, #222832 dark card body.
+ *
+ * Signal Orange reaches only 2.87:1 on white, so it is used for accents rather than
+ * for body or link text in light mode; link text is darkened to #B84806, which gives
+ * 4.81:1 on #F3F4F5. On the dark surfaces the brand orange itself is compliant
+ * (5.17:1 on #222832), so it is used unchanged there.
+ */
+
+:root {
+    --pnd-gray: #5F6160;
+    --pnd-orange: #FF6A1A;
+    --pnd-orange-text-light: #B84806;
+    --pnd-surface-light: #F3F4F5;
+    --pnd-surface-dark: #222832;
+    --pnd-surface-dark-header: #29313D;
+}
+
+html[data-theme="light"] {
+    --pst-color-primary: var(--pnd-orange-text-light);
+    --pst-color-primary-highlight: #993C04;
+    --pst-color-secondary: var(--pnd-gray);
+    --pst-color-secondary-highlight: #4A4C4B;
+    --pst-color-link: var(--pnd-orange-text-light);
+    --pst-color-link-hover: #993C04;
+    --pst-color-accent: var(--pnd-orange);
+    --pst-color-inline-code-links: var(--pnd-orange-text-light);
+}
+
+html[data-theme="dark"] {
+    --pst-color-primary: var(--pnd-orange);
+    --pst-color-primary-highlight: #FF7F3D;
+    --pst-color-secondary: #C9CBCA;
+    --pst-color-secondary-highlight: #E2E4E3;
+    --pst-color-link: var(--pnd-orange);
+    --pst-color-link-hover: #FF9159;
+    --pst-color-accent: var(--pnd-orange);
+    --pst-color-inline-code-links: var(--pnd-orange);
+}
+
+/* The supplied logo carries its own clear space, so it needs no extra padding.
+ * Per the brand guide the gray must not be inverted or filtered by a theme, which is
+ * why the dark variant is a separate file with a white holding area rather than a
+ * CSS filter on the light one. */
+.navbar-brand img,
+.navbar-brand .logo__image {
+    max-height: 2.6rem;
+}
+
+/* Orange accent on the active navigation item and on section anchors */
+.bd-sidebar-primary .current > a,
+.bd-sidebar-secondary .toc-entry > .nav-link.active {
+    border-left-color: var(--pnd-orange);
+}
+
+/* Keep wide tables and generated API signatures readable */
+.bd-content table {
+    display: table;
+    width: 100%;
+}
+
+.bd-content table.docutils {
+    table-layout: auto;
+}
+
+/* Allow long equations to scroll rather than overflow the page */
+div.math {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* Give sphinx-gallery thumbnails a little more room */
+.sphx-glr-thumbcontainer {
+    margin: 6px 8px;
+}
+
+/* The logo on the overview page carries its own clear space, so it must not pick up a
+   card background or a shadow from the theme */
+.pynetdesign-index-logo,
+.pynetdesign-index-logo a,
+.pynetdesign-index-logo img {
+    background: transparent !important;
+    box-shadow: none !important;
+}

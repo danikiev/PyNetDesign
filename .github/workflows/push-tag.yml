@@ -1,0 +1,29 @@
+name: Push Tag
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  validate-tag:
+    uses: ./.github/workflows/validate-tag.yml
+    with:
+      tag: ${{ github.ref_name }}
+    permissions:
+      contents: read
+
+  docs:
+    needs: validate-tag
+    uses: ./.github/workflows/docs.yml
+    with:
+      ref: ${{ needs.validate-tag.outputs.ref }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
