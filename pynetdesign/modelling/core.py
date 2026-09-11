@@ -30,7 +30,7 @@ def get_mag_sensitivity_local(grid_coords: np.ndarray,
     params : :obj:`pynetdesign.modelling.classes.DetectionParameters`
         Detection parameters
     wave_mode: :obj:`str`, optional, default: 'PS'
-        Wave mode to use, can be 'P','S' or 'PS'
+        Wave mode to use, can be 'P', 'SV', 'SH', 'S' or 'PS'
     strict_nan_check: :obj:`bool`, optional, default: False
         flag to check if NaN values appear in the result
 
@@ -50,11 +50,9 @@ def get_mag_sensitivity_local(grid_coords: np.ndarray,
     # Get gauge length if exists
     gauge_length = geometry_df.attrs.get('gauge_length', None)
 
-    # Decide on station directionality
-    if gauge_length is None:
-        use_station_directionality = False
-    else:
-        use_station_directionality = True
+    # Receiver projection is decided from the geometry itself: a DAS geometry is
+    # projected onto the local cable tangent and a single-component station onto
+    # the vertical axis, so no explicit flag is needed here.
 
     # Get minimum detectable amplitudes
     min_amps_p, min_amps_s = retrieve_min_amps(geometry_df=geometry_df,
@@ -86,8 +84,9 @@ def get_mag_sensitivity_local(grid_coords: np.ndarray,
                                                     f_p_corner=params.f_p_corner,
                                                     f_s_corner=params.f_s_corner,
                                                     wave_mode=wave_mode,
-                                                    use_free_surface=params.free_surface,
-                                                    use_station_directionality=use_station_directionality,
+                                                    fs_mode=params.fs_mode,
+                                                    fs_level=params.fs_level,
+                                                    fs_deviation=params.fs_deviation,
                                                     return_stations=True,
                                                     strict_nan_check=strict_nan_check)
     
@@ -120,7 +119,7 @@ def get_mag_sensitivity(grid_coords: np.ndarray,
     params : :obj:`pynetdesign.modelling.classes.DetectionParameters`
         Detection parameters
     wave_mode: :obj:`str`, optional, default: 'PS'
-        Wave mode to use, can be 'P','S' or 'PS'
+        Wave mode to use, can be 'P', 'SV', 'SH', 'S' or 'PS'
     strict_nan_check: :obj:`bool`, optional, default: False
         flag to check if NaN values appear in the result
 

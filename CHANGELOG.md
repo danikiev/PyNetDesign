@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- phase-resolved wave modes: `wave_mode` accepts `'P'`, `'SV'`, `'SH'`, `'S'` and `'PS'`, where `'S'` is a composite mode keeping the more detectable of the SV and SH branches
+- root-mean-square radiation-pattern magnitudes per phase, `R_P = sqrt(4/15) ~ 0.52`, `R_SV = sqrt(7/30) ~ 0.48` and `R_SH = sqrt(1/6) ~ 0.41`, averaged over the focal sphere of a double-couple source after Boore and Boatwright (1984) and Hallo and Eisner (2013), exposed through `phase_radiation_pattern`
+- `rad_pattern_p`, `rad_pattern_s` and `rad_patterns` overrides on `mag_sensitivity_grid`, so that results computed with another convention stay reproducible; pass `rad_pattern_s=0.63` to use the combined S-wave value
+- receiver projection from the arriving polarization vectors, through `get_phase_station_directionality`, which is correct for inclined and curved cables rather than only for a vertical one
+- projection of single vertical-component stations onto the vertical axis, driven by a `Components` column; three-component stations record the full vector and are unaffected
+- per-station free surface amplification through `compute_free_surface_coefficients`, with `fs_mode`, `fs_level` and `fs_deviation` parameters and an optional `Surface` column carrying per-station weights
+- helpers `normalize_wave_mode`, `wave_mode_phases`, `wave_mode_has_p`, `wave_mode_has_s`, `wave_mode_s_phases`, `resolve_radiation_pattern`, `check_min_stations` and `geometry_requires_receiver_projection`
+- test modules covering wave modes and radiation patterns, receiver projection, the free surface correction, network detectability, and phase-resolved sensitivity end to end
+
+### Changed
+
+- **S-wave results differ from 1.0.x.** The S branch now uses the phase-resolved radiation patterns instead of the combined value 0.63, which raises S-wave thresholds by `2/3*log10(0.63/sqrt(7/30))`, about 0.077 magnitude units. Pass `rad_pattern_s=0.63` to recover the previous behaviour
+- **the free surface correction is applied per receiver.** In 1.0.x `free_surface=True` amplified every receiver irrespective of its depth; it now applies only to receivers at the free surface, so geometries mixing surface and downhole receivers are treated correctly. The default mode is `'auto'`, which derives the indicator from the receiver depths or from the `Surface` column when present
+- `DetectionParameters` takes `fs_mode`, `fs_level` and `fs_deviation`; the `free_surface` flag is deprecated but still accepted, mapping to `fs_mode='on'` or `'off'`
+- `mag_detectable` accepts the phase-resolved wave modes
+- receiver projection is decided from the geometry itself, so `use_station_directionality` is only needed to force tangent projection for a station geometry
+
+### Removed
+
+- the `rays_p` and `rays_s` arguments of `get_ray_station_directionality`, which could never be populated because the homogeneous package has no ray tracer. The function is deprecated in favour of `get_phase_station_directionality` and now emits a `DeprecationWarning`
+
+### Fixed
+
+- the station-count guard in `mag_detectable` compared against the grid axis instead of the station axis, so a request for more receivers than the geometry has was not reported clearly
+
 ## [v1.0.1] - 2026-09-10
 
 Bugfix release correcting the seismic moment calculation.

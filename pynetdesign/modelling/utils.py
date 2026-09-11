@@ -6,6 +6,185 @@ from math import gcd
 from typing import Union, Optional
 import warnings
 
+VALID_WAVE_MODES = ("P", "SV", "SH", "S", "PS")
+S_WAVE_PHASES = ("SV", "SH")
+
+# Root-mean-square radiation-pattern magnitudes over the focal sphere of a
+# double-couple source, after Boore and Boatwright (1984) and Hallo and Eisner
+# (2013). Note that the frequently quoted value sqrt(2/5) ~ 0.63 is the combined
+# S-wave magnitude, since <R_SV^2> + <R_SH^2> = 2/5, and therefore does not apply
+# to SV or SH individually.
+RAD_PATTERN_P_DEFAULT = float(np.sqrt(4.0 / 15.0))    # approx 0.516
+RAD_PATTERN_SV_DEFAULT = float(np.sqrt(7.0 / 30.0))   # approx 0.483
+RAD_PATTERN_SH_DEFAULT = float(np.sqrt(1.0 / 6.0))    # approx 0.408
+
+
+def normalize_wave_mode(wave_mode: str) -> str:
+    r"""
+    Return the canonical form of a wave mode.
+
+    ``'S'`` is a composite mode representing the better recorded of the two
+    isotropic S polarizations, SV and SH.
+
+    Parameters
+    ----------
+    wave_mode : :obj:`str`
+        Wave mode, one of ``'P'``, ``'SV'``, ``'SH'``, ``'S'`` or ``'PS'``,
+        in any letter case and with surrounding whitespace ignored.
+
+    Returns
+    -------
+    mode : :obj:`str`
+        Canonical upper-case wave mode.
+
+    Raises
+    ------
+    ValueError
+        If ``wave_mode`` is not one of the supported modes.
+    """
+    mode = str(wave_mode).strip().upper()
+    if mode not in VALID_WAVE_MODES:
+        raise ValueError(
+            f"Invalid wave_mode '{wave_mode}'. Must be one of {VALID_WAVE_MODES}."
+        )
+    return mode
+
+
+def wave_mode_phases(wave_mode: str) -> tuple:
+    r"""
+    Expand a wave mode into the physical phases that must be evaluated.
+
+    Parameters
+    ----------
+    wave_mode : :obj:`str`
+        Wave mode, see :func:`normalize_wave_mode`.
+
+    Returns
+    -------
+    phases : :obj:`tuple` of :obj:`str`
+        Phases to evaluate, drawn from ``'P'``, ``'SV'`` and ``'SH'``.
+    """
+    mode = normalize_wave_mode(wave_mode)
+    if mode == "P":
+        return ("P",)
+    if mode in S_WAVE_PHASES:
+        return (mode,)
+    if mode == "S":
+        return S_WAVE_PHASES
+    return ("P", *S_WAVE_PHASES)
+
+
+def wave_mode_has_p(wave_mode: str) -> bool:
+    r"""Return whether ``wave_mode`` includes the P branch."""
+    return "P" in wave_mode_phases(wave_mode)
+
+
+def wave_mode_s_phases(wave_mode: str) -> tuple:
+    r"""Return the S-family phases included in ``wave_mode``."""
+    return tuple(phase for phase in wave_mode_phases(wave_mode) if phase in S_WAVE_PHASES)
+
+
+def wave_mode_has_s(wave_mode: str) -> bool:
+    r"""Return whether ``wave_mode`` includes any S-family branch."""
+    return bool(wave_mode_s_phases(wave_mode))
+
+
+def phase_radiation_pattern(phase: str) -> float:
+    r"""
+    Return the root-mean-square radiation-pattern magnitude of a phase.
+
+    The values are averages over the focal sphere of a double-couple source
+    :cite:p:`BooreBoatwright1984`, as used for microseismicity with random source
+    orientations :cite:p:`HalloEisner2013`:
+
+    .. math::
+        R_P = \sqrt{4/15} \approx 0.52, \quad
+        R_{SV} = \sqrt{7/30} \approx 0.48, \quad
+        R_{SH} = \sqrt{1/6} \approx 0.41.
+
+    Parameters
+    ----------
+    phase : :obj:`str`
+        Phase, one of ``'P'``, ``'SV'`` or ``'SH'``.
+
+    Returns
+    -------
+    rad_pattern : :obj:`float`
+        Radiation-pattern magnitude of the phase.
+
+    Raises
+    ------
+    ValueError
+        If ``phase`` is a composite mode rather than a single phase.
+
+    Notes
+    -----
+    The value :math:`\sqrt{2/5} \approx 0.63` often quoted for S-waves is the
+    magnitude of the *combined* S-wave amplitude, since
+    :math:`\langle R_{SV}^2 \rangle + \langle R_{SH}^2 \rangle = 2/5`, and is
+    therefore not applicable to SV or SH individually.
+    """
+    phase = normalize_wave_mode(phase)
+    if phase == "P":
+        return RAD_PATTERN_P_DEFAULT
+    if phase == "SV":
+        return RAD_PATTERN_SV_DEFAULT
+    if phase == "SH":
+        return RAD_PATTERN_SH_DEFAULT
+    raise ValueError("Radiation pattern is only defined for P, SV, and SH.")
+
+
+def resolve_radiation_pattern(phase: str,
+                              rad_pattern_p: float = None,
+                              rad_pattern_s: float = None,
+                              rad_patterns: dict = None) -> float:
+    r"""
+    Resolve the radiation-pattern magnitude to use for a phase.
+
+    Overrides take precedence over the root-mean-square defaults of
+    :func:`phase_radiation_pattern`, which makes it possible to reproduce results
+    published with other conventions, for instance the combined S-wave value
+    :math:`R_S = 0.63`.
+
+    Parameters
+    ----------
+    phase : :obj:`str`
+        Phase, one of ``'P'``, ``'SV'`` or ``'SH'``.
+    rad_pattern_p : :obj:`float`, optional
+        Override for the P phase. If ``None``, the default is used.
+    rad_pattern_s : :obj:`float`, optional
+        Override applied to both S phases. If ``None``, the defaults are used.
+    rad_patterns : :obj:`dict`, optional
+        Per-phase overrides, e.g. ``{'SV': 0.63}``. Takes precedence over
+        ``rad_pattern_p`` and ``rad_pattern_s``.
+
+    Returns
+    -------
+    rad_pattern : :obj:`float`
+        Radiation-pattern magnitude to use.
+
+    Raises
+    ------
+    ValueError
+        If a resolved value is not in the interval (0, 1].
+    """
+    phase = normalize_wave_mode(phase)
+    value = None
+    if rad_patterns:
+        normalized = {normalize_wave_mode(key): val for key, val in rad_patterns.items()}
+        value = normalized.get(phase)
+    if value is None:
+        if phase == 'P':
+            value = rad_pattern_p
+        else:
+            value = rad_pattern_s
+    if value is None:
+        return phase_radiation_pattern(phase)
+    value = float(value)
+    if not 0 < value <= 1:
+        raise ValueError(f"Invalid radiation pattern factor for {phase}: {value}.")
+    return value
+
 def calculate_Mw(M0):
     r"""
     Calculates the moment magnitude :math:`M_w` according to :ref:`Kanamori (1977) <Kanamori1977_calculate_Mw>` using formula
@@ -608,7 +787,7 @@ def mag_detectable(Mw_min_stations: np.ndarray,
     min_stations_s : :obj:`int`, optional, default: 3
         Minimum number of stations on which event must be detected with S waves
     wave_mode: :obj:`str`, optional, default: 'PS'
-        Wave mode to use, can be 'P','S' or 'PS'
+        Wave mode to use, can be 'P', 'SV', 'SH', 'S' or 'PS'
 
     Returns
     -------
@@ -620,21 +799,24 @@ def mag_detectable(Mw_min_stations: np.ndarray,
     ValueError :
         if minimum number of stations on which event must be detected with P or S waves is less than 1 or exceeds number of stations
     """
+    wave_mode = normalize_wave_mode(wave_mode)
+
     if min_stations_p is None:
         min_stations_p = 3
     if min_stations_s is None:
         min_stations_s = 3
 
-    if not 0 < min_stations_p <= len(Mw_min_stations[0]):
-        raise ValueError("Invalid minimum number of stations for P waves.")
-    if not 0 < min_stations_s <= len(Mw_min_stations[1]):
-        raise ValueError("Invalid minimum number of stations for S waves.")
+    # Number of stations is the last axis of the (2, n_grid_points, n_stations) array
+    check_min_stations(min_stations_p=min_stations_p,
+                       min_stations_s=min_stations_s,
+                       n_stations=Mw_min_stations.shape[2],
+                       wave_mode=wave_mode)
 
     # Compute final Mw_min_grid based on wave mode
     if wave_mode == 'P':
         # For P waves, find the nth smallest value (where n = min_stations_p)
         Mw_min_grid = np.partition(Mw_min_stations[0], min_stations_p - 1, axis=1)[:, min_stations_p - 1]
-    elif wave_mode == 'S':
+    elif wave_mode in ('S', 'SV', 'SH'):
         # For S waves, find the nth smallest value (where n = min_stations_s)
         Mw_min_grid = np.partition(Mw_min_stations[1], min_stations_s - 1, axis=1)[:, min_stations_s - 1]
     else:  # wave_mode == 'PS'
@@ -645,204 +827,437 @@ def mag_detectable(Mw_min_stations: np.ndarray,
 
     return Mw_min_grid
 
-def get_ray_station_directionality(station_coords: np.ndarray,
-                                   grid_coords: np.ndarray,
-                                   rays_p: list=None,
-                                   rays_s: list=None,
-                                   strict_nan_check: bool=False):
+def check_min_stations(min_stations_p: int,
+                       min_stations_s: int,
+                       n_stations: int,
+                       wave_mode: str = 'PS'):
     r"""
-    Derive directionality coefficients for P and S waves
-    for each station using rays to this station.
-    Takes into account the sequence of stations.
+    Check that the minimum numbers of stations required for detection are valid.
+
+    Parameters
+    ----------
+    min_stations_p : :obj:`int`
+        Minimum number of stations on which event must be detected with P waves.
+    min_stations_s : :obj:`int`
+        Minimum number of stations on which event must be detected with S waves.
+    n_stations : :obj:`int`
+        Total number of stations in the geometry.
+    wave_mode : :obj:`str`, optional, default: ``'PS'``
+        Wave mode to use, can be 'P', 'SV', 'SH', 'S' or 'PS'.
+
+    Raises
+    ------
+    ValueError
+        If a minimum number of stations is not positive or exceeds the number of stations.
+
+    Notes
+    -----
+    Each of ``min_stations_p`` and ``min_stations_s`` is checked only if it is not
+    ``None`` and only if the corresponding branch is part of ``wave_mode``.
+    """
+    wave_mode = normalize_wave_mode(wave_mode)
+    if wave_mode_has_p(wave_mode) and min_stations_p is not None:
+        if min_stations_p <= 0:
+            raise ValueError("Minimum number of stations on which event must be detected with P waves must be positive.")
+        if min_stations_p > n_stations:
+            raise ValueError("Minimum number of stations on which event must be detected with P waves must not exceed number of stations.")
+    if wave_mode_has_s(wave_mode) and min_stations_s is not None:
+        if min_stations_s <= 0:
+            raise ValueError("Minimum number of stations on which event must be detected with S waves must be positive.")
+        if min_stations_s > n_stations:
+            raise ValueError("Minimum number of stations on which event must be detected with S waves must not exceed number of stations.")
+
+
+def compute_free_surface_coefficients(station_coords: np.ndarray,
+                                      grid_coords: np.ndarray,
+                                      station_coords_on_surface: np.ndarray = None,
+                                      fs_mode: str = 'auto',
+                                      fs_level: float = 0.0,
+                                      fs_deviation: float = 1.0):
+    r"""
+    Compute free surface amplification coefficients for each station and grid point.
+
+    A receiver recording at the free surface sees an amplitude approximately twice
+    that of the incident wave, which is the exact amplification for normal or
+    near-normal incidence. The coefficient is applied per station, so that a
+    geometry combining surface receivers with receivers at depth is treated
+    correctly.
 
     Parameters
     ----------
     station_coords : :obj:`numpy.ndarray`
         Array of station coordinates [[xr1, yr1, zr1], [xr2, yr2, zr2], ...]
-    grid_coords : :obj:`numpy.ndarray`, optional
+    grid_coords : :obj:`numpy.ndarray`
         Array of grid coordinates [[xs1, ys1, zs1], [xs2, ys2, zs2], ...]
-    rays_p: :obj:`list` of :obj:`numpy.ndarray`
-        If provided, must contain exactly one ray path from each (station, grid) pair,
-        sorted from that station (first row) to that grid point (last row).
-        The path's shape is ``(m,3)``.
-        Used for P-wave directionality.
-    rays_s: :obj:`list` of :obj:`numpy.ndarray`
-        Same as rays_p but for S-wave directionality.
-    strict_nan_check: :obj:`bool`, optional, default: False
-        If True, raise a RuntimeError if NaNs appear in the resulting
-        directionality coefficients.
+    station_coords_on_surface : :obj:`numpy.ndarray`, optional
+        Per-station indicator of whether the station is on the free surface, as a
+        1D array of the same length as the number of stations, with values in
+        [0, 1]. Values between 0 and 1 act as a weighting factor between no
+        amplification and full amplification. If ``None``, the indicator is
+        derived from the station depths.
+    fs_mode : :obj:`str`, optional, default: ``'auto'``
+        Free surface correction mode, can be ``'auto'``, ``'on'`` or ``'off'``.
+        If ``'on'``, the correction is applied to stations close to the free
+        surface irrespective of ``station_coords_on_surface``. If ``'off'``, the
+        correction is never applied. If ``'auto'``, ``station_coords_on_surface``
+        is used when available, otherwise stations are considered to be on the
+        free surface when their Z coordinate deviates from the free surface level
+        by no more than ``fs_deviation``.
+    fs_level : :obj:`float`, optional, default: 0.0
+        Level of the free surface in metres above the reference level.
+    fs_deviation : :obj:`float`, optional, default: 1.0
+        Permitted deviation from the free surface level in metres, must be
+        non-negative.
+
+    Returns
+    -------
+    fs_coef_p : :obj:`numpy.ndarray`
+        Free surface coefficients for P waves, of shape (n_grid_points, n_stations)
+    fs_coef_s : :obj:`numpy.ndarray`
+        Free surface coefficients for S waves, of shape (n_grid_points, n_stations)
+
+    Raises
+    ------
+    ValueError
+        If ``fs_level`` is not a scalar, ``fs_deviation`` is negative,
+        ``station_coords_on_surface`` has the wrong shape or values outside
+        [0, 1], or ``fs_mode`` is not one of the supported modes.
+
+    Notes
+    -----
+    The free surface level is negated internally to match the convention that Z
+    increases downwards.
+    """
+    if station_coords.ndim == 1 and station_coords.size == 3:
+        station_coords = station_coords[np.newaxis, :]
+    if grid_coords.ndim == 1 and grid_coords.size == 3:
+        grid_coords = grid_coords[np.newaxis, :]
+
+    n_stations = station_coords.shape[0]
+    n_grid_points = grid_coords.shape[0]
+
+    # Negate the free surface level to match the downward-positive Z convention
+    if np.ndim(fs_level) != 0:
+        raise ValueError("Free surface level must be a scalar.")
+    fs_depth = -fs_level
+
+    if fs_deviation < 0:
+        raise ValueError("Free surface level deviation must be non-negative.")
+
+    # Check and normalize the optional per-station weights
+    surface_weights = None
+    if station_coords_on_surface is not None:
+        station_coords_on_surface = np.asarray(station_coords_on_surface)
+        if station_coords_on_surface.ndim != 1 or station_coords_on_surface.shape[0] != n_stations:
+            raise ValueError("station_coords_on_surface must be a 1D array with the same length as the number of stations.")
+        surface_weights = station_coords_on_surface.astype(float, copy=False)
+        if np.any((surface_weights < 0) | (surface_weights > 1)):
+            raise ValueError("station_coords_on_surface must contain only values in the range [0, 1].")
+
+    # Simple free-surface approximation: amplitudes are doubled at the surface
+    full_fs_coef = 2.0
+
+    # Decide how much of the full amplification applies to each station
+    if fs_mode == 'auto':
+        if surface_weights is None:
+            surface_weights = (np.abs(station_coords[:, 2] - fs_depth) <= fs_deviation).astype(float)
+    elif fs_mode == 'on':
+        surface_weights = (np.abs(station_coords[:, 2] - fs_depth) <= fs_deviation).astype(float)
+    elif fs_mode == 'off':
+        surface_weights = np.zeros(n_stations, dtype=float)
+    else:
+        raise ValueError("Invalid free surface mode. Must be 'auto', 'on', or 'off'.")
+
+    # Interpolate between no amplification (1.0) and full amplification
+    fs_coef = np.broadcast_to(
+        1.0 + (full_fs_coef - 1.0) * surface_weights[np.newaxis, :],
+        (n_grid_points, n_stations)
+    ).astype(float, copy=True)
+
+    # The same coefficients are used for P and S waves
+    return fs_coef, fs_coef
+
+
+def _unit_vectors(vectors: np.ndarray) -> np.ndarray:
+    r"""Normalize vectors along the last axis, leaving zero-length rows as NaN."""
+    norms = np.linalg.norm(vectors, axis=-1, keepdims=True)
+    with np.errstate(invalid='ignore', divide='ignore'):
+        return vectors / norms
+
+
+def _station_reference_vectors(station_coords: np.ndarray) -> np.ndarray:
+    r"""
+    Estimate the local cable tangent at each channel from its neighbours.
+
+    The forward difference to the next channel is used by default. Where the cable
+    turns by more than 30 degrees, or where the forward step exceeds ten times the
+    backward step, the backward difference is used instead, so that a channel at a
+    kink or at the end of a segment still receives a sensible tangent.
+    """
+    if len(station_coords) < 2:
+        raise ValueError("There must be at least two stations.")
+
+    station_vectors = np.diff(station_coords, axis=0)
+    cn_vectors = np.vstack([station_vectors, station_vectors[-1]])
+    cp_vectors = np.vstack([station_vectors[0], station_vectors])
+
+    eps = 1e-12
+    cn_distances = np.linalg.norm(cn_vectors, axis=1) + eps
+    cp_distances = np.linalg.norm(cp_vectors, axis=1) + eps
+
+    cos_vals = np.sum(cn_vectors * cp_vectors, axis=1) / (cn_distances * cp_distances)
+    cos_vals = np.clip(cos_vals, -1.0, 1.0)
+    angles_cn_cp = np.arccos(cos_vals)
+    use_cp = (angles_cn_cp > np.radians(30)) | (cn_distances > 10 * cp_distances)
+    return np.where(use_cp[:, np.newaxis], cp_vectors, cn_vectors)
+
+
+def _polarization_vectors(ray_vectors: np.ndarray, phase: str) -> np.ndarray:
+    r"""
+    Arriving polarization unit vectors for a phase.
+
+    P is polarized along the ray, SH horizontally and perpendicular to the vertical
+    ray plane, and SV perpendicular to both. For a vertical ray the SH direction is
+    degenerate, so a stable horizontal fallback basis is used instead.
+    """
+    phase = normalize_wave_mode(phase)
+    n = _unit_vectors(ray_vectors)
+    if phase == "P":
+        return n
+
+    vertical = np.array([0.0, 0.0, 1.0])
+    sh = np.cross(vertical, n)
+    sh_norm = np.linalg.norm(sh, axis=-1)
+
+    fallback_x = np.cross(np.array([1.0, 0.0, 0.0]), n)
+    fallback_y = np.cross(np.array([0.0, 1.0, 0.0]), n)
+    fallback_x_norm = np.linalg.norm(fallback_x, axis=-1)
+    fallback = np.where((fallback_x_norm > 1e-12)[..., np.newaxis], fallback_x, fallback_y)
+    sh = np.where((sh_norm > 1e-12)[..., np.newaxis], sh, fallback)
+    sh = _unit_vectors(sh)
+
+    if phase == "SH":
+        return sh
+    if phase == "SV":
+        return _unit_vectors(np.cross(sh, n))
+
+    raise ValueError("Polarization vectors are defined only for P, SV, and SH.")
+
+
+def _validate_station_components(components) -> pd.Series:
+    r"""Validate a ``Components`` column, filling missing entries with ``'3C'``."""
+    component_series = pd.Series(components).dropna()
+    invalid_components = sorted(set(component_series).difference({'3C', 'Z'}))
+    if invalid_components:
+        raise ValueError(
+            "Components values must be either '3C' or 'Z'. "
+            f"Invalid values: {', '.join(invalid_components)}"
+        )
+    return pd.Series(components).fillna('3C')
+
+
+def geometry_requires_receiver_projection(geometry_df: Optional[pd.DataFrame]) -> bool:
+    r"""
+    Return whether a geometry needs receiver-component projection.
+
+    A DAS geometry, identified by the presence of a gauge length, always requires
+    projection onto the local cable tangent. A station geometry requires projection
+    only if at least one station records a single vertical component.
+
+    Parameters
+    ----------
+    geometry_df : :obj:`pandas.DataFrame` or ``None``
+        Geometry DataFrame.
+
+    Returns
+    -------
+    required : :obj:`bool`
+        Whether projection is required.
+    """
+    if geometry_df is None:
+        return False
+    if geometry_df.attrs.get('gauge_length') is not None:
+        return True
+    if 'Components' not in geometry_df.columns:
+        return False
+    components = _validate_station_components(geometry_df['Components'])
+    return bool((components == 'Z').any())
+
+
+def get_phase_station_directionality(station_coords: np.ndarray,
+                                     grid_coords: np.ndarray,
+                                     phases=("P", "SV", "SH"),
+                                     geometry_df: Optional[pd.DataFrame] = None,
+                                     force_tangent: bool = False,
+                                     strict_nan_check: bool = False) -> dict:
+    r"""
+    Derive receiver projection coefficients for P, SV and SH polarizations.
+
+    The recorded amplitude of a phase is the projection of its arriving
+    polarization onto the direction the receiver is sensitive to. For a phase
+    :math:`\phi` the correction applied to the minimum detectable amplitude is
+
+    .. math::
+        C_{\phi} = \frac{1}{\left| \mathbf{d} \cdot \mathbf{e}_{\phi} \right|},
+
+    where :math:`\mathbf{e}_{\phi}` is the arriving polarization and
+    :math:`\mathbf{d}` is the local cable tangent for DAS, or the vertical axis for
+    a single-component station. Three-component stations record the full vector and
+    therefore use a coefficient of one.
+
+    Parameters
+    ----------
+    station_coords : :obj:`numpy.ndarray`
+        Array of station coordinates [[xr1, yr1, zr1], [xr2, yr2, zr2], ...]
+    grid_coords : :obj:`numpy.ndarray`
+        Array of grid coordinates [[xs1, ys1, zs1], [xs2, ys2, zs2], ...]
+    phases : sequence of :obj:`str`, optional, default: ``("P", "SV", "SH")``
+        Phases to compute coefficients for. Must be drawn from 'P', 'SV' and 'SH'.
+    geometry_df : :obj:`pandas.DataFrame`, optional
+        Geometry DataFrame, used to detect a DAS geometry from its gauge length and
+        to read a ``Components`` column for station geometries. If ``None``,
+        projection onto the local tangent is used.
+    force_tangent : :obj:`bool`, optional, default: ``False``
+        Force projection onto the local tangent even when ``geometry_df`` describes
+        a station geometry.
+    strict_nan_check : :obj:`bool`, optional, default: ``False``
+        Flag to check whether NaN values appear in the result.
+
+    Returns
+    -------
+    coefficients : :obj:`dict`
+        Mapping from phase name to an array of coefficients of shape
+        (n_grid_points, n_stations).
+
+    Raises
+    ------
+    ValueError
+        If a requested phase is not P, SV or SH, if the geometry and station
+        coordinates disagree in length, or if a DAS geometry also carries a
+        ``Components`` column.
+    RuntimeError
+        If ``strict_nan_check`` is True and NaN appears in the result.
+
+    Notes
+    -----
+    A vanishing projection means the phase cannot be recorded at all, for example
+    SH on a vertical cable, and yields NaN so that the phase is excluded rather
+    than reported as infinitely detectable.
+
+    Straight rays between each station and each grid point are assumed, which is
+    exact in a homogeneous medium.
+    """
+    station_coords = np.asarray(station_coords, dtype=float)
+    grid_coords = np.asarray(grid_coords, dtype=float)
+    if station_coords.ndim == 1 and station_coords.size == 3:
+        station_coords = station_coords[np.newaxis, :]
+    if grid_coords.ndim == 1 and grid_coords.size == 3:
+        grid_coords = grid_coords[np.newaxis, :]
+
+    phases = tuple(dict.fromkeys(normalize_wave_mode(phase) for phase in phases))
+    if any(phase not in ("P", "SV", "SH") for phase in phases):
+        raise ValueError("Directionality phases must be P, SV, or SH.")
+
+    use_tangent_projection = force_tangent or geometry_df is None
+    components = None
+    if geometry_df is not None:
+        if len(geometry_df) != len(station_coords):
+            raise ValueError("Geometry and station coordinates must have the same number of stations.")
+        has_gauge_length = geometry_df.attrs.get('gauge_length') is not None
+        has_components = 'Components' in geometry_df.columns
+        if has_gauge_length:
+            if has_components and geometry_df['Components'].notna().any():
+                raise ValueError("Components column is only allowed for station geometries, not DAS geometries.")
+            use_tangent_projection = True
+        elif has_components:
+            components = _validate_station_components(geometry_df['Components']).to_numpy()
+        else:
+            components = np.full(len(station_coords), '3C', dtype=object)
+
+    if use_tangent_projection:
+        reference_unit = _unit_vectors(_station_reference_vectors(station_coords))
+    else:
+        vertical_unit = np.array([0.0, 0.0, 1.0])
+
+    # Straight rays from each station to each grid point
+    ray_vectors = grid_coords[:, np.newaxis, :] - station_coords[np.newaxis, :, :]
+
+    result = {}
+    for phase in phases:
+        polarization = _polarization_vectors(ray_vectors, phase)
+        if use_tangent_projection:
+            projection = np.abs(
+                np.sum(polarization * reference_unit[np.newaxis, :, :], axis=2)
+            )
+            projection[np.isclose(projection, 0.0)] = np.nan
+            result[phase] = 1.0 / projection
+        else:
+            coefficients = np.ones(polarization.shape[:2], dtype=float)
+            z_mask = components == 'Z'
+            if np.any(z_mask):
+                projection = np.abs(
+                    np.sum(polarization[:, z_mask, :] * vertical_unit, axis=2)
+                )
+                projection[np.isclose(projection, 0.0)] = np.nan
+                coefficients[:, z_mask] = 1.0 / projection
+            result[phase] = coefficients
+
+    if strict_nan_check:
+        if any(np.any(np.isnan(values)) for values in result.values()):
+            current_function = inspect.currentframe().f_code.co_name
+            raise RuntimeError(
+                f"NaN values detected while computing directionality coefficients in {current_function}."
+            )
+
+    return result
+
+
+def get_ray_station_directionality(station_coords: np.ndarray,
+                                   grid_coords: np.ndarray,
+                                   strict_nan_check: bool = False):
+    r"""
+    Derive directionality coefficients for P and S waves along a cable.
+
+    .. deprecated::
+        Use :func:`get_phase_station_directionality`, which resolves SV and SH
+        separately and projects the actual polarization vectors.
+
+    Parameters
+    ----------
+    station_coords : :obj:`numpy.ndarray`
+        Array of station coordinates [[xr1, yr1, zr1], [xr2, yr2, zr2], ...]
+    grid_coords : :obj:`numpy.ndarray`
+        Array of grid coordinates [[xs1, ys1, zs1], [xs2, ys2, zs2], ...]
+    strict_nan_check : :obj:`bool`, optional, default: ``False``
+        Flag to check whether NaN values appear in the result.
 
     Returns
     -------
     dir_coef_p : :obj:`numpy.ndarray`
-        Array of correction coefficients for P wave, for each grid point and station
+        Directionality coefficients for P waves, of shape (n_grid_points, n_stations)
     dir_coef_s : :obj:`numpy.ndarray`
-        Array of correction coefficients for S wave, for each grid point and station
-
-    Raises
-    ------
-    ValueError :
-        if len(station_coords) is less than 2
-    RuntimeError :
-        if strict_nan_check is True and NaN appears in the result
+        Directionality coefficients for SV waves, of shape (n_grid_points, n_stations)
 
     Notes
     -----
-    For each station it computes the correction coefficient for P and S wave.
-    If no `rays_p` and `rays_s` are provided, we treat the medium as homogeneous.
-    For P wave the correction coefficient is equal to the inverse of the absolute value of cosine of the angle between
-    the line connecting the current station with each grid point (CG line)
-    and the line connecting the current station with the next station (CN line).
-    If there is no next station (the current station is the last one),
-    the line connecting the current station with the previous station (CP line) is used instead of the CN line.
-    If the angle between the CN and CP lines is larger than 30 degrees
-    or if the distance between the current station and the next station (CN distance)
-    is 10 times larger than the distance between the current station and the previous station (CP distance),
-    the CP line is used for calculation of the angle with CG line, whereas for the next station the CN line is always used.
-    For S wave the correction coefficient is equal to the inverse of the absolute value of the sine of the same angle as described for the P wave.
-    This is a vectorized version of the function. It computes the directionality
-    coefficients for all grid points and stations simultaneously, which should be much
-    more efficient for large datasets.
-
-    If `rays_p` is provided, we do NOT assume a simple straight ray (line)
-    from grid point to station; instead, we use the ray path for that pair,
-    extract only the first segment near the station, and treat that as CG.
-    Ray is considered to start from station.
-    The same logic applies if `rays_s` is provided for the S-wave.
+    Returns the P and SV coefficients of
+    :func:`get_phase_station_directionality` with tangent projection forced. For a
+    vertical cable these are the familiar :math:`1/|\cos\theta|` and
+    :math:`1/|\sin\theta|`; for an inclined or curved cable they are the correct
+    polarization projections rather than that approximation.
     """
-    # Check number of stations
-    if len(station_coords) < 2:
-        raise ValueError("There must be at least two stations.")
-
-    # Determine which wave(s) we are actually computing
-    # per user specification:
-    #  - if both rays_p and rays_s are None => compute both P & S, assume straight ray
-    #  - if rays_p is not None and rays_s is None => only P
-    #  - if rays_p is None and rays_s is not None => only S
-    #  - if both are provided => both P & S
-    straight_rays = False
-    if rays_p is not None and rays_s is not None:
-        compute_p, compute_s = True, True
-    elif rays_p is not None:  # only rays_p is provided
-        compute_p, compute_s = True, False
-    elif rays_s is not None:  # only rays_s is provided
-        compute_p, compute_s = False, True
-    else:
-        straight_rays = True
-        compute_p, compute_s = True, True  # neither is provided => both
-
-    # Get lengths
-    n_stations = station_coords.shape[0]
-    n_grid_points = grid_coords.shape[0]
-
-    # Calculate vectors between stations
-    station_vectors = np.diff(station_coords, axis=0)
-
-    # Pad the first and last rows to handle edge cases
-    cn_vectors = np.vstack([station_vectors, station_vectors[-1]])
-    cp_vectors = np.vstack([station_vectors[0], station_vectors])
-
-    # Calculate distances for distance checks
-    cn_distances = np.linalg.norm(cn_vectors, axis=1)
-    cp_distances = np.linalg.norm(cp_vectors, axis=1)
-
-    # Calculate angles between CN and CP vectors
-    angles_cn_cp = np.arccos(np.sum(cn_vectors * cp_vectors, axis=1) /
-                             (cn_distances * cp_distances))
-
-    # Determine whether to use CP vector based on angle and distance conditions
-    use_cp = (angles_cn_cp > np.radians(30)) | (cn_distances > 10 * cp_distances)
-
-    # Prepare vectors for angle calculation
-    vectors_for_angle = np.where(use_cp[:, np.newaxis], cp_vectors, cn_vectors)
-
-    # Function to build cg vector using P and S rays
-    def build_cg_vectors(rays):
-        r"""
-        Given ray paths in ``rays``, build an array of CG vectors
-        of shape ``(n_grid_points, n_stations, 3)``.
-        Use the first segment of the provided ray path near the station.
-        """
-
-        cg = np.zeros((n_grid_points, n_stations, 3), dtype=float)
-
-        for i_st in range(n_stations):
-            for j_gr in range(n_grid_points):
-                iray = i_st*n_grid_points + j_gr
-                path = rays[iray]
-                if path is None:
-                    raise ValueError(f"No ray found for station #{i_st} and grid #{j_gr}")
-                if path.shape[0] < 2:
-                    raise ValueError(
-                        f"Ray path for station #{i_st}, grid #{j_gr} "
-                        f"has too few points ({path.shape[0]})."
-                    )
-                stc = station_coords[i_st]
-                if not np.all(np.isclose(path[0], stc, atol=1e-03)):
-                    #raise ValueError(f"Ray {iray} ({path[0]}) does not start at the station {i_st} ({stc})")
-                    warnings.warn(f"Ray {iray} start point ({path[0]}) differ from station {i_st} coordinates ({stc})")
-                cg[j_gr, i_st, :] = path[1] - path[0]
-        return cg
-
-    if straight_rays:
-        cg_vectors = grid_coords[:, np.newaxis, :] - station_coords[np.newaxis, :, :]
-    else:
-        cg_vectors_p = build_cg_vectors(rays_p) if compute_p else None
-        cg_vectors_s = build_cg_vectors(rays_s) if compute_s else None
-
-    # Function to compute directionality from a set of CG vectors
-    # cg_vectors shape: (n_grid_points, n_stations, 3)
-    def compute_dir_coeffs_for_cg_vectors(cg_vectors):
-        r"""
-        Given ``cg_vectors`` of shape ``(n_grid_points, n_stations, 3)``, compute
-        ``dir_coef_p`` and ``dir_coef_s`` using the angle with ``vectors_for_angle``.
-        Returns ``(dir_coef_p, dir_coef_s)`` each shaped as ``(n_grid_points, n_stations)``.
-        """
-        # Normalize vectors_for_angle per station
-        # shape: (n_stations, 3)
-        station_ref_norm = vectors_for_angle / np.linalg.norm(vectors_for_angle, axis=1, keepdims=True)
-
-        # Now we want the dot-product with each cg_vector
-        # cg_vectors shape: (n_grid_points, n_stations, 3)
-        # We'll normalize cg_vectors along axis=2
-        cg_norm = cg_vectors / np.linalg.norm(cg_vectors, axis=2, keepdims=True)
-
-        # cos(angle) = abs( dot( cg_norm, station_ref_norm ) )
-        # We'll expand station_ref_norm so we can broadcast: shape -> (1, n_stations, 3)
-        dot_vals = np.sum(cg_norm * station_ref_norm[np.newaxis, :, :], axis=2)
-        cos_vals = np.abs(dot_vals)
-        # sin(angle) = sqrt(1 - cos^2(angle))
-        sin_vals = np.sqrt(1.0 - cos_vals**2)
-
-        # Zero or near-zero cos/sin => we'd get inf => we can turn them into NaN
-        cos_near_zero = np.isclose(cos_vals, 0.0)
-        sin_near_zero = np.isclose(sin_vals, 0.0)
-
-        cos_vals[cos_near_zero] = np.nan
-        sin_vals[sin_near_zero] = np.nan
-
-        dir_coef_p = 1.0 / cos_vals   # shape (n_grid_points, n_stations)
-        dir_coef_s = 1.0 / sin_vals   # shape (n_grid_points, n_stations)
-
-        if strict_nan_check:
-            if np.any(np.isnan(dir_coef_p)) or np.any(np.isnan(dir_coef_s)):
-                current_function = inspect.currentframe().f_code.co_name
-                raise RuntimeError(
-                    f"NaN values detected while computing directionality "
-                    f"coefficients in {current_function}."
-                )
-
-        return dir_coef_p, dir_coef_s
-
-    # Compute directionality coefficients for whichever waves we need
-    if straight_rays:
-        dir_coef_p, dir_coef_s = compute_dir_coeffs_for_cg_vectors(cg_vectors)
-    else:
-        dir_coef_p = None
-        dir_coef_s = None
-        if compute_p:
-            dir_coef_p, _ = compute_dir_coeffs_for_cg_vectors(cg_vectors_p)
-        if compute_s:
-            _, dir_coef_s = compute_dir_coeffs_for_cg_vectors(cg_vectors_s)
-
-    return dir_coef_p, dir_coef_s
+    warnings.warn(
+        "get_ray_station_directionality is deprecated; use "
+        "get_phase_station_directionality, which resolves SV and SH separately.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    coefficients = get_phase_station_directionality(
+        station_coords=station_coords,
+        grid_coords=grid_coords,
+        phases=("P", "SV"),
+        geometry_df=None,
+        force_tangent=True,
+        strict_nan_check=strict_nan_check,
+    )
+    return coefficients["P"], coefficients["SV"]

@@ -15,14 +15,17 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
                          min_amps_s: np.ndarray = None,
                          min_stations_p: int = None,
                          min_stations_s: int = None,
-                         rad_pattern_p: float = 0.52,
-                         rad_pattern_s: float = 0.63,
+                         rad_pattern_p: float = None,
+                         rad_pattern_s: float = None,
+                         rad_patterns: dict = None,
                          f_p: float = None,
                          f_s: float = None,
                          f_p_corner: float = None,
                          f_s_corner: float = None,
                          wave_mode: str = 'PS',
-                         use_free_surface: bool = False,
+                         fs_mode: str = 'auto',
+                         fs_level: float = None,
+                         fs_deviation: float = None,
                          use_station_directionality: bool = False,
                          return_stations: bool = False,
                          strict_nan_check: bool = False,
@@ -53,10 +56,17 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
         Minimum number of stations on which event must be detected with P waves
     min_stations_s : :obj:`int`, optional, default: None (3)
         Minimum number of stations on which event must be detected with S waves
-    rad_pattern_p : :obj:`float`, optional, default: 0.52
-        Radiation pattern factor for P waves
-    rad_pattern_s : :obj:`float`, optional, default: 0.63
-        Radiation pattern factor for S waves
+    rad_pattern_p : :obj:`float`, optional
+        Override of the radiation pattern factor for P waves.
+        If ``None``, the root-mean-square value :math:`\sqrt{4/15} \approx 0.52` is used.
+    rad_pattern_s : :obj:`float`, optional
+        Override of the radiation pattern factor applied to both S phases.
+        If ``None``, the root-mean-square values :math:`\sqrt{7/30} \approx 0.48` for SV
+        and :math:`\sqrt{1/6} \approx 0.41` for SH are used. Pass 0.63 to reproduce
+        results computed with the combined S-wave value.
+    rad_patterns : :obj:`dict`, optional
+        Per-phase overrides of the radiation pattern factor, e.g. ``{'SV': 0.63}``.
+        Takes precedence over ``rad_pattern_p`` and ``rad_pattern_s``.
     f_p : :obj:`float`, optional
         Frequency of the P wave (Hz)
     f_s : :obj:`float`, optional
@@ -66,14 +76,22 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
     f_s_corner : :obj:`float`, optional
         Corner frequency of the S wave (Hz)
     wave_mode: :obj:`str`, optional, default: 'PS'
-        Wave mode to use, can be 'P','S' or 'PS'
-    use_free_surface : :obj:`bool`, optional, default: False
-        Use free surface correction.
-        If True, this will consider amplification of the amplitudes when recording on the daily surface
-        due to the free surface boundary condition.
+        Wave mode to use, can be 'P', 'SV', 'SH', 'S' or 'PS'
+    fs_mode : :obj:`str`, optional, default: 'auto'
+        Free surface correction mode, can be 'auto', 'on' or 'off'.
+        The correction accounts for the amplification of amplitudes recorded at the
+        daily surface due to the free surface boundary condition, and is applied per
+        station so that geometries mixing surface and downhole receivers are handled
+        correctly. See :func:`~pynetdesign.modelling.utils.compute_free_surface_coefficients`.
+    fs_level : :obj:`float`, optional, default: None (0.0)
+        Level of the free surface in metres above the reference level.
+    fs_deviation : :obj:`float`, optional, default: None (1.0)
+        Permitted deviation from the free surface level in metres.
     use_station_directionality : :obj:`bool`, optional, default: False
-        Use station directionality correction.
-        This will consider sensitivity of the measurement only in direction parallel to the adjacent stations
+        Force projection of the arriving polarization onto the local tangent defined by
+        the adjacent stations. Projection is applied automatically for DAS geometries
+        and for stations recording a single vertical component, so this is only needed
+        to force tangent projection for a station geometry.
     return_stations : :obj:`bool`, optional, default: False
         Return magnitude sensitivity for each station, don't take into account detectability
     strict_nan_check: :obj:`bool`, optional, default: False
@@ -119,6 +137,12 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
     if station_coords is None:
         station_coords = geometry_df[['X', 'Y', 'Z']].to_numpy()
 
+    # Get the free surface information from geometry, if provided
+    if geometry_df is not None and 'Surface' in geometry_df.columns:
+        station_coords_on_surface = geometry_df['Surface'].to_numpy()
+    else:
+        station_coords_on_surface = None
+
     # Handle the case if station_coords has only one point (3 elements)
     if station_coords.ndim == 1 and station_coords.size == 3:
         station_coords = station_coords[np.newaxis, :]  # reshape to (1, 3)
@@ -138,6 +162,21 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
     if len(velocity_df) != 1:
         raise ValueError("Velocity model is not homogeneous!")
 
+    # Expand the wave mode into the phases that have to be evaluated
+    wave_mode = normalize_wave_mode(wave_mode)
+    phases = wave_mode_phases(wave_mode)
+    s_phases = wave_mode_s_phases(wave_mode)
+
+    # Check the free surface parameters
+    if fs_level is None:
+        fs_level = 0.0
+    if fs_deviation is None:
+        fs_deviation = 1.0
+    elif fs_deviation < 0:
+        raise ValueError("Free surface level deviation must be non-negative")
+    if fs_mode not in ('auto', 'on', 'off'):
+        raise ValueError("Free surface mode must be 'auto', 'on' or 'off'")
+
     # Retrieve medium parameters
     density = velocity_df.at[0,'Rho']
     v_p = velocity_df.at[0,'Vp']
@@ -153,10 +192,15 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
                         Q_p=Q_p,
                         min_amps_p=min_amps_p,
                         min_amps_s=min_amps_s,
-                        rad_pattern_p=rad_pattern_p,
-                        rad_pattern_s=rad_pattern_s,
                         wave_mode=wave_mode,
                         station_coords=station_coords)
+
+    # Check the minimum number of stations required for detection
+    if not return_stations:
+        check_min_stations(min_stations_p=min_stations_p,
+                           min_stations_s=min_stations_s,
+                           n_stations=len(station_coords),
+                           wave_mode=wave_mode)
 
     # Precompute distances between all grid points and all stations
     # Shape: (n_grid_points, n_stations)
@@ -165,33 +209,39 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
         if np.any(distances == 0):
             raise ValueError("Zero distance: source and receiver must have different coordinates")
 
-    # Calculate free surface correction coefficient if needed
-    if use_free_surface:
-        if v_p is None or v_s is None:
-            raise ValueError("Both P- and S-wave velocities must be declared for free surface correction!")
-        # Simple approximation
-        fs_coef_p = fs_coef_s = 2*np.ones_like(distances)
-    else:
-        # If not using free surface correction, use ones (no effect on calculations)
-        fs_coef_p = fs_coef_s = np.ones_like(distances)
+    # Calculate free surface correction coefficients, applied per station
+    fs_coef_p, fs_coef_s = compute_free_surface_coefficients(station_coords=station_coords,
+                                                             grid_coords=grid_coords,
+                                                             station_coords_on_surface=station_coords_on_surface,
+                                                             fs_mode=fs_mode,
+                                                             fs_level=fs_level,
+                                                             fs_deviation=fs_deviation)
 
-    # Calculate station directionality if needed
-    if use_station_directionality:
-        stations_dir_coef_p, stations_dir_coef_s = get_ray_station_directionality(station_coords=station_coords,
-                                                                                  grid_coords=grid_coords,
-                                                                                  strict_nan_check=strict_nan_check)
+    # Calculate receiver projection coefficients if needed. Projection applies
+    # automatically to DAS geometries and to single-component stations.
+    geometry_projection_required = geometry_requires_receiver_projection(geometry_df)
+    if use_station_directionality or geometry_projection_required:
+        directionality = get_phase_station_directionality(station_coords=station_coords,
+                                                          grid_coords=grid_coords,
+                                                          phases=phases,
+                                                          geometry_df=geometry_df,
+                                                          force_tangent=use_station_directionality and not geometry_projection_required,
+                                                          strict_nan_check=strict_nan_check)
     else:
-        # If not using directionality, use ones (no effect on calculations)
-        stations_dir_coef_p = stations_dir_coef_s = np.ones_like(distances)
+        # If not using projection, use ones (no effect on calculations)
+        directionality = {phase: np.ones_like(distances) for phase in phases}
 
-    # Helper function to calculate Mw_min for a given wave type
-    def calculate_Mw_min(f, fcorner, density, v, Q, rad_pattern, min_amps, fs_coef, stations_dir_coef, amps_type):
+    # Helper function to calculate Mw_min for a given phase
+    def calculate_Mw_min(f, fcorner, v, Q, phase, min_amps, fs_coef):
         M0 = calculate_M0(density=density,
                           v=v,
                           Q=Q,
-                          rad_pattern=rad_pattern,
+                          rad_pattern=resolve_radiation_pattern(phase,
+                                                                rad_pattern_p=rad_pattern_p,
+                                                                rad_pattern_s=rad_pattern_s,
+                                                                rad_patterns=rad_patterns),
                           r=distances,
-                          amps = min_amps * stations_dir_coef / fs_coef,
+                          amps = min_amps * directionality[phase] / fs_coef,
                           f=f,
                           fcorner=fcorner,
                           amps_type=amps_type)
@@ -202,30 +252,27 @@ def mag_sensitivity_grid(grid_coords: np.ndarray,
     Mw_min_stations = np.full((2, *distances.shape), np.nan)
 
     # Calculate Mw_min for P waves if applicable
-    if wave_mode in ('P', 'PS'):
+    if wave_mode_has_p(wave_mode):
         Mw_min_stations[0] = calculate_Mw_min(f=f_p,
                                               fcorner=f_p_corner,
-                                              density=density,
                                               v=v_p,
                                               Q=Q_p,
-                                              rad_pattern=rad_pattern_p,
+                                              phase='P',
                                               min_amps=min_amps_p,
-                                              fs_coef=fs_coef_p,
-                                              stations_dir_coef=stations_dir_coef_p,
-                                              amps_type=amps_type)
+                                              fs_coef=fs_coef_p)
 
-    # Calculate Mw_min for S waves if applicable
-    if wave_mode in ('S', 'PS'):
-        Mw_min_stations[1] = calculate_Mw_min(f=f_s,
-                                              fcorner=f_s_corner,
-                                              density=density,
-                                              v=v_s,
-                                              Q=Q_s,
-                                              rad_pattern=rad_pattern_s,
-                                              min_amps=min_amps_s,
-                                              fs_coef=fs_coef_s,
-                                              stations_dir_coef=stations_dir_coef_s,
-                                              amps_type=amps_type)
+    # Calculate Mw_min for S waves if applicable. For the composite S mode the
+    # more detectable of the SV and SH branches is kept, i.e. the smaller magnitude.
+    if s_phases:
+        mw_s = [calculate_Mw_min(f=f_s,
+                                 fcorner=f_s_corner,
+                                 v=v_s,
+                                 Q=Q_s,
+                                 phase=phase,
+                                 min_amps=min_amps_s,
+                                 fs_coef=fs_coef_s)
+                for phase in s_phases]
+        Mw_min_stations[1] = mw_s[0] if len(mw_s) == 1 else np.fmin(mw_s[0], mw_s[1])
 
     # Return depending on the request
     if return_stations:
@@ -412,7 +459,7 @@ def calculate_M0(density: float,
 
     return M0
 
-def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, rad_pattern_p, rad_pattern_s, wave_mode, station_coords):
+def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, wave_mode, station_coords):
     r"""
     Validates the input parameters.
 
@@ -432,12 +479,8 @@ def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, rad
         Minimal measurable displacement amplitudes of on stations [a1, a2, ...] for P waves
     min_amps_s : :obj:`numpy.ndarray`
         Minimal measurable displacement amplitudes on stations [a1, a2, ...] for S waves
-    rad_pattern_p : :obj:`float`
-        Radiation pattern factor for P waves
-    rad_pattern_s : :obj:`float`
-        Radiation pattern factor for S waves
     wave_mode: :obj:`str`
-        Wave mode to use, can be 'P','S' or 'PS'    
+        Wave mode to use, can be 'P', 'SV', 'SH', 'S' or 'PS'    
     station_coords : :obj:`numpy.ndarray`
         Array of station coordinates [[xr1, yr1, zr1], [xr2, yr2, zr2], ...]    
 
@@ -445,8 +488,6 @@ def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, rad
     ------
     ValueError :
         if density, wave velocity or attenuation factor is not positive
-    ValueError :
-        if radiation pattern factor for P or S wave is less or equal to 0 or higher than 1
     ValueError :
         if number of minimal measurable amplitudes does not match number of stations
     ValueError :
@@ -462,7 +503,7 @@ def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, rad
         raise ValueError("Both P wave and S wave attenuation factors can not be None.")
 
     # Validate P wave parameters if applicable
-    if wave_mode in ('P', 'PS'):
+    if wave_mode_has_p(wave_mode):
         if any(x <= 0 for x in (v_p, Q_p)):
             raise ValueError("P wave parameters must be positive.")
         if min_amps_p is None:
@@ -472,11 +513,9 @@ def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, rad
                 raise ValueError("Invalid minimal measurable amplitudes for P waves.")
         elif len(min_amps_p) != len(station_coords):
             raise ValueError("Invalid minimal measurable amplitudes for P waves.")
-        if not 0 < rad_pattern_p <= 1:
-            raise ValueError("Invalid radiation pattern factor for P waves.")
 
     # Validate S wave parameters if applicable
-    if wave_mode in ('S', 'PS'):
+    if wave_mode_has_s(wave_mode):
         if any(x <= 0 for x in (v_s, Q_s)):
             raise ValueError("S wave parameters must be positive.")
         if min_amps_s is None:
@@ -486,5 +525,3 @@ def validate_parameters(density, v_p, v_s, Q_p, Q_s, min_amps_p, min_amps_s, rad
                 raise ValueError("Invalid minimal measurable amplitudes for S waves.")
         elif len(min_amps_s) != len(station_coords):
             raise ValueError("Invalid minimal measurable amplitudes for S waves.")
-        if not 0 < rad_pattern_s <= 1:
-            raise ValueError("Invalid radiation pattern factor for S waves.")
