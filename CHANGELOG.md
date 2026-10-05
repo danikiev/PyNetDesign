@@ -5,7 +5,11 @@ All notable changes to PyNetDesign will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.1.0] - 2026-10-05
+
+Feature release: phase-resolved wave modes, per-receiver free surface and receiver
+projection, synthetic geometry builders, a documentation site in HTML and PDF, and
+branding.
 
 ### Added
 
@@ -22,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `read_geometry` reads the optional `Surface` and `Components` columns, so the per-station free surface weights and the single vertical component stations introduced above can be described in a geometry file
 - `read_geometry` records the path it read in `attrs['file_path']`
 - test modules covering wave modes and radiation patterns, receiver projection, the free surface correction, network detectability, and phase-resolved sensitivity end to end
+- `test_magnitude_consistency.py`, which builds the forward displacement spectrum independently of the package and checks that `calculate_M0` inverts it exactly, that the spectral conversion `S(f)` is applied once and not twice across `retrieve_min_amps` and `calculate_M0`, and that an event at the threshold magnitude records exactly the requested signal-to-noise ratio for each of the five amplitude types, gauge-length bridge included
 - Sphinx documentation under `docs/`, published to GitHub Pages at <https://danikiev.github.io/PyNetDesign/>, with an overview, a getting-started guide covering installation and the input file formats, a methodology chapter, an example gallery and a generated API reference
 - `methodology.rst` documenting the theory actually implemented: spectral conventions, the attenuation operator, the peak frequency, the detection threshold and its conversion coefficients, the free surface correction, receiver projection and DAS directionality, the radiation pattern with the full root-mean-square derivation, the homogeneous seismic moment relation with a standalone derivation from the far-field point source, and the network detectability criterion
 - `docs/source/references.bib` with the seven works cited from the docstrings and the methodology, so the `:cite:` roles added earlier now resolve
@@ -40,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **the free surface correction is applied per receiver.** In 1.0.x `free_surface=True` amplified every receiver irrespective of its depth; it now applies only to receivers at the free surface, so geometries mixing surface and downhole receivers are treated correctly. The default mode is `'auto'`, which derives the indicator from the receiver depths or from the `Surface` column when present
 - `DetectionParameters` takes `fs_mode`, `fs_level` and `fs_deviation`; the `free_surface` flag is deprecated but still accepted, mapping to `fs_mode='on'` or `'off'`
 - `mag_detectable` accepts the phase-resolved wave modes
+- **example 7 is now the 1-km DAS array benchmark.** It models a 1-km-long vertical fibre with 1 m channel spacing, so 1000 channels, a constant strain-rate noise level of 1.95e-9 1/s and a 10 m gauge length, in a homogeneous medium with Vp = 2370 m/s, Vp/Vs = 2, Qp = Qs = 100 and rho = 2500 kg/m^3, requiring detection on at least 60 channels. It shows the three features that follow from a fibre recording only the strain along itself: the threshold magnitude grows with offset, P-wave sensitivity is worst at the array mid-depth once the offset exceeds half the array length, and S-wave sensitivity vanishes on the cable axis and degrades below the array
 - the methodology and credits pages close with a `References` section rather than a rubric, so the bibliography is reachable from the table of contents
 - the credits page acknowledges the works the implementation rests on individually, adding Aki and Richards (2002) for the far-field point source, the radiation-pattern convention and the free surface, and Cerveny (2001) for the ray-theoretical global absorption factor
 - receiver projection is decided from the geometry itself, so `use_station_directionality` is only needed to force tangent projection for a station geometry
@@ -51,12 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - `environment-dev.yml`, superseded by the `dev` and `docs` optional dependency groups
+- the empty `__init__.py` at the repository root, which made the repository root look like an importable package and confused setuptools flat-layout discovery
 - the `rays_p` and `rays_s` arguments of `get_ray_station_directionality`, which could never be populated because the homogeneous package has no ray tracer. The function is deprecated in favour of `get_phase_station_directionality` and now emits a `DeprecationWarning`
 
 ### Fixed
 
 - the `.. only:: html` blocks on the front page held their content at the wrong indentation, so the directive guarded nothing and the LaTeX build was asked to typeset icon cards it cannot render
 - `examples/README.txt` promised a raytracing example that this package does not ship, and carried a stale product name
+- a grid point that coincides with a receiver no longer emits a spurious divide-by-zero warning. Such a point gives `r = 0`, hence `t* = 0` and an infinite peak frequency, which the corner-frequency clamp already turned into the right answer; only the warning was wrong. Coincidence is ordinary with a dense DAS cable, where every channel sits on a grid line
+- `pytest.ini` named `tests` as a directory to avoid, which does not exist here, and never named the directory that does. It now sets `testpaths = pytests`, so `examples` and `data` are not searched for tests
+- `test_read_geometry.py` resolved its sample geometry files relative to the working directory, so it only passed when pytest was started from the repository root. The paths are now anchored to the test file
 - the station-count guard in `mag_detectable` compared against the grid axis instead of the station axis, so a request for more receivers than the geometry has was not reported clearly
 - the default dark-fibre turn distances are now fractions of the cable length, at one quarter, one half and three quarters, so that `generate_geometry(mode='darkfiber')` works for any cable. The previous fixed distances of 6, 12 and 18 km exceeded the default cable length and made the default call fail; for a 24 km cable the layout is unchanged
 - `uninstall.bat` could never remove an environment. `ENV_NAME` and `CONFIRM` were assigned and read inside the same `for` block, so `cmd` substituted their pre-loop empty values: the script printed an empty environment name and always took the skip branch regardless of the answer. It now uses delayed expansion, and matches environment names anchored to the start of the line so that an unrelated environment cannot be matched through its path
@@ -110,6 +120,6 @@ code itself is unchanged from the deposited version.
 - conda environment files for user and development installations, and Windows installation scripts
 - MIT license
 
-[Unreleased]: https://github.com/danikiev/PyNetDesign/compare/v1.0.1...HEAD
+[v1.1.0]: https://github.com/danikiev/PyNetDesign/compare/v1.0.1...v1.1.0
 [v1.0.1]: https://github.com/danikiev/PyNetDesign/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/danikiev/PyNetDesign/releases/tag/v1.0.0
