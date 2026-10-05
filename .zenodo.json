@@ -1,9 +1,9 @@
 {
     "title": "PyNetDesign: a Python framework for microseismic monitoring network design",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "license": "MIT",
     "upload_type": "software",
-    "description": "PyNetDesign is an open-source Python library that provides a simple and functional framework for designing and testing microseismic monitoring networks. Version 1.0.1 is a bugfix release. It corrects the seismic moment calculation, which underestimated the moment by a factor of 2*pi*f because the amplitude-to-displacement spectral conversion was applied twice. Minimum detectable moment magnitudes reported by version 1.0.0 were too low by roughly 1.0 to 1.9 magnitude units, by an amount that varies with the source-receiver distance, so results produced with version 1.0.0 should be recomputed. The release also restores Python 3.9 compatibility of the visualization module, removes a non-functional location uncertainty routine that referenced functions absent from the package, and adds a test module covering the magnitude relations.",
+    "description": "PyNetDesign is an open-source Python library that provides a simple and functional framework for designing and testing microseismic monitoring networks. Version 1.1.0 adds phase-resolved wave modes, so that SV and SH are treated separately with their own root-mean-square radiation patterns; receiver projection computed from the arriving polarization vectors, which is correct for inclined and curved cables and for single vertical-component stations; a free surface correction applied per receiver rather than to the whole network; synthetic geometry builders for borehole, surface and dark-fibre layouts, with writers to save and decimate them; a documentation site in HTML and PDF with a methodology chapter and an example gallery; and branding. S-wave results differ from 1.0.x because the S branch now uses the phase-resolved radiation patterns instead of the combined value.",
     "keywords": [
         "earthquakes",
         "microseismicity",

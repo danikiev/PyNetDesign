@@ -1,2 +1,2 @@
-Depth(m) Vp(m/s) Vp/Vs Qp Qs density(kg/m^3) Ep(anisotropy) Dt(anisotropy) Gm(anisotropy)
-40000	4300	1.73	100	50	2300	0.0	0.0	0.0
+Depth(m)	Vp(m/s)	Vp/Vs	Qp	Qs	density(kg/m^3)	Ep(anisotropy)	Dt(anisotropy)	Gm(anisotropy)
+40000	2370	2	100	100	2500	0.0	0.0	0.0

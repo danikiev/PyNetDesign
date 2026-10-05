@@ -5,7 +5,71 @@ All notable changes to PyNetDesign will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.1.0] - 2026-10-05
+
+Feature release: phase-resolved wave modes, per-receiver free surface and receiver
+projection, synthetic geometry builders, a documentation site in HTML and PDF, and
+branding.
+
+### Added
+
+- phase-resolved wave modes: `wave_mode` accepts `'P'`, `'SV'`, `'SH'`, `'S'` and `'PS'`, where `'S'` is a composite mode keeping the more detectable of the SV and SH branches
+- root-mean-square radiation-pattern magnitudes per phase, `R_P = sqrt(4/15) ~ 0.52`, `R_SV = sqrt(7/30) ~ 0.48` and `R_SH = sqrt(1/6) ~ 0.41`, averaged over the focal sphere of a double-couple source after Boore and Boatwright (1984) and Hallo and Eisner (2013), exposed through `phase_radiation_pattern`
+- `rad_pattern_p`, `rad_pattern_s` and `rad_patterns` overrides on `mag_sensitivity_grid`, so that results computed with another convention stay reproducible; pass `rad_pattern_s=0.63` to use the combined S-wave value
+- receiver projection from the arriving polarization vectors, through `get_phase_station_directionality`, which is correct for inclined and curved cables rather than only for a vertical one
+- projection of single vertical-component stations onto the vertical axis, driven by a `Components` column; three-component stations record the full vector and are unaffected
+- per-station free surface amplification through `compute_free_surface_coefficients`, with `fs_mode`, `fs_level` and `fs_deviation` parameters and an optional `Surface` column carrying per-station weights
+- helpers `normalize_wave_mode`, `wave_mode_phases`, `wave_mode_has_p`, `wave_mode_has_s`, `wave_mode_s_phases`, `resolve_radiation_pattern`, `check_min_stations` and `geometry_requires_receiver_projection`
+- `pynetdesign.modelling.geometry`, a module of synthetic geometry builders: `generate_geometry` dispatches to `generate_borehole_geometry` for vertical, inclined and deviated boreholes, to `generate_surface_geometry` for line, zigzag, L, square and double-line layouts, and to `generate_darkfiber_geometry` for a continuous dark-fibre path with turns. Each returns geometry text lines that `read_geometry` can read back, including a depth-dependent noise profile for boreholes
+- `save_geometry`, writing either generated text lines or a geometry DataFrame back to the `read_geometry` format, with `Z` restored to an elevation so that a round trip is lossless
+- `decimate_geometry`, keeping every n-th channel while preserving the metadata, for studying the effect of channel spacing on a dense array
+- `read_geometry` reads the optional `Surface` and `Components` columns, so the per-station free surface weights and the single vertical component stations introduced above can be described in a geometry file
+- `read_geometry` records the path it read in `attrs['file_path']`
+- test modules covering wave modes and radiation patterns, receiver projection, the free surface correction, network detectability, and phase-resolved sensitivity end to end
+- `test_magnitude_consistency.py`, which builds the forward displacement spectrum independently of the package and checks that `calculate_M0` inverts it exactly, that the spectral conversion `S(f)` is applied once and not twice across `retrieve_min_amps` and `calculate_M0`, and that an event at the threshold magnitude records exactly the requested signal-to-noise ratio for each of the five amplitude types, gauge-length bridge included
+- Sphinx documentation under `docs/`, published to GitHub Pages at <https://danikiev.github.io/PyNetDesign/>, with an overview whose quick-link panels lead to every section and to the PDF edition, a getting-started guide covering installation and the input file formats, a methodology chapter, an example gallery and a generated API reference
+- `methodology.rst` documenting the theory actually implemented: spectral conventions, the attenuation operator, the peak frequency, the detection threshold and its conversion coefficients, the free surface correction, receiver projection and DAS directionality, the radiation pattern with the full root-mean-square derivation, the homogeneous seismic moment relation with a standalone derivation from the far-field point source, and the network detectability criterion
+- `docs/source/references.bib` with the seven works cited from the docstrings and the methodology, so the `:cite:` roles added earlier now resolve
+- `citing`, `contributing` and `credits` documentation pages, plus a changelog page that is generated from `CHANGELOG.md` when the documentation is built, so the changelog has a single source and the generated page is not committed. On that page each version links to its changes on GitHub. These pages follow the main chapters in the order Citing, Contributing, Changelog, Credits
+- `docs.yml` workflow building the documentation on every push and deploying it to GitHub Pages from `main` and from release tags, including a check that the built version matches the tag
+- `push-tag.yml` workflow, so that pushing a `vX.Y.Z` tag validates it and publishes versioned documentation
+- `build-docs.bat` and `build-docs.sh` for building the documentation, and `serve-docs.bat` and `serve-docs.sh` for viewing it locally. `serve-docs` rebuilds incrementally before serving, so only the pages that changed are regenerated, and accepts `--port` and `--no-build`. Both accept `SPHINXOPTS`, and neither needs `make`: they call `python -m sphinx -M` directly. Both also take `--pdf`, which builds the PDF edition and places it where the documentation links to it
+- a PDF edition of the documentation, produced from the same sources through lualatex and linked from the site header and the front page, so the whole manual can be read offline as one file. Each web page keeps its own reference list, while the PDF lists the cited works once, in a bibliography at its end that its citations link to. `docs.yml` builds it on every run, publishes it with the site and keeps a copy as a workflow artifact
+- `install.sh` and `uninstall.sh`, the Linux and macOS counterparts of the existing Windows scripts. `install.sh` takes `--dev` or `--no-dev` to answer the development-tools question in advance, and `uninstall.sh` takes `--yes`
+- branding from the PyNetDesign brand package: the logo in the documentation header and the README, and the full browser icon set, comprising `favicon.ico`, a scalable `favicon.svg`, an Apple touch icon and a web app manifest. Both themes serve the same transparent logo, the one the README uses, so the mark keeps its own clear space and is never filtered or recoloured by the theme, because the brand gray is fixed and must not be inverted. Hovering the header logo swaps in the brand's own orange-only lockup, which carries the same geometry at the same viewBox and differs only in colour, so the mark neither moves nor resizes and no filter is involved
+- brand colours in the documentation stylesheet. Signal Orange reaches only 2.87:1 against white, so link text in light mode is darkened to `#B84806`, which measures 4.81:1 against the light page surface, while the unmodified orange is used on the dark surfaces where it measures 5.17:1
+
+### Changed
+
+- **S-wave results differ from 1.0.x.** The S branch now uses the phase-resolved radiation patterns instead of the combined value 0.63, which raises S-wave thresholds by `2/3*log10(0.63/sqrt(7/30))`, about 0.077 magnitude units. Pass `rad_pattern_s=0.63` to recover the previous behaviour
+- **the free surface correction is applied per receiver.** In 1.0.x `free_surface=True` amplified every receiver irrespective of its depth; it now applies only to receivers at the free surface, so geometries mixing surface and downhole receivers are treated correctly. The default mode is `'auto'`, which derives the indicator from the receiver depths or from the `Surface` column when present
+- `DetectionParameters` takes `fs_mode`, `fs_level` and `fs_deviation`; the `free_surface` flag is deprecated but still accepted, mapping to `fs_mode='on'` or `'off'`
+- `mag_detectable` accepts the phase-resolved wave modes
+- **example 7 is now the 1-km DAS array benchmark.** It models a 1-km-long vertical fibre with 1 m channel spacing, so 1000 channels, a constant strain-rate noise level of 1.95e-9 1/s and a 10 m gauge length, in a homogeneous medium with Vp = 2370 m/s, Vp/Vs = 2, Qp = Qs = 100 and rho = 2500 kg/m^3, requiring detection on at least 60 channels. It shows the three features that follow from a fibre recording only the strain along itself: the threshold magnitude grows with offset, P-wave sensitivity is worst at the array mid-depth once the offset exceeds half the array length, and S-wave sensitivity vanishes on the cable axis and degrades below the array
+- the methodology and credits pages close with a `References` section rather than a rubric, so the bibliography is reachable from the table of contents
+- the credits page acknowledges the works the implementation rests on individually, adding Aki and Richards (2002) for the far-field point source, the radiation-pattern convention and the free surface, and Cerveny (2001) for the ray-theoretical global absorption factor
+- receiver projection is decided from the geometry itself, so `use_station_directionality` is only needed to force tangent projection for a station geometry
+- **a single environment file.** `environment.yml` now pins only the interpreter, and every dependency is declared in `pyproject.toml`, as runtime `dependencies` or in the `dev` and `docs` optional groups. Install with `conda env create -f environment.yml -n pnd` followed by `pip install -e .` or `pip install -e ".[dev,docs]"`. This removes the duplicated dependency lists, which had drifted: they advertised `scipy` and `plotly`, neither of which is imported, and omitted `cmcrameri`, which is required
+- `pyproject.toml` declares `requires-python = ">=3.9,<3.13"`, the MIT license and its file, project URLs, and a fuller set of keywords and classifiers; Python 3.8 is no longer advertised, since it is not tested and the package needs 3.9
+- `install.bat` creates one environment, `pnd`, from the single file and asks whether to add the development tools, rather than choosing between two conda files and two environment names
+- the README documents the documentation site and the PDF download, corrects the Python range and the dependency list, and fixes the case of the clone URL
+
+### Removed
+
+- `environment-dev.yml`, superseded by the `dev` and `docs` optional dependency groups
+- the empty `__init__.py` at the repository root, which made the repository root look like an importable package and confused setuptools flat-layout discovery
+- the `rays_p` and `rays_s` arguments of `get_ray_station_directionality`, which could never be populated because the homogeneous package has no ray tracer. The function is deprecated in favour of `get_phase_station_directionality` and now emits a `DeprecationWarning`
+
+### Fixed
+
+- the `.. only:: html` blocks on the front page held their content at the wrong indentation, so the directive guarded nothing and the LaTeX build was asked to typeset icon cards it cannot render
+- `examples/README.txt` promised a raytracing example that this package does not ship, and carried a stale product name
+- a grid point that coincides with a receiver no longer emits a spurious divide-by-zero warning. Such a point gives `r = 0`, hence `t* = 0` and an infinite peak frequency, which the corner-frequency clamp already turned into the right answer; only the warning was wrong. Coincidence is ordinary with a dense DAS cable, where every channel sits on a grid line
+- `pytest.ini` named `tests` as a directory to avoid, which does not exist here, and never named the directory that does. It now sets `testpaths = pytests`, so `examples` and `data` are not searched for tests
+- `test_read_geometry.py` resolved its sample geometry files relative to the working directory, so it only passed when pytest was started from the repository root. The paths are now anchored to the test file
+- the station-count guard in `mag_detectable` compared against the grid axis instead of the station axis, so a request for more receivers than the geometry has was not reported clearly
+- the default dark-fibre turn distances are now fractions of the cable length, at one quarter, one half and three quarters, so that `generate_geometry(mode='darkfiber')` works for any cable. The previous fixed distances of 6, 12 and 18 km exceeded the default cable length and made the default call fail; for a 24 km cable the layout is unchanged
+- `uninstall.bat` could never remove an environment. `ENV_NAME` and `CONFIRM` were assigned and read inside the same `for` block, so `cmd` substituted their pre-loop empty values: the script printed an empty environment name and always took the skip branch regardless of the answer. It now uses delayed expansion, and matches environment names anchored to the start of the line so that an unrelated environment cannot be matched through its path
 
 ## [v1.0.1] - 2026-09-10
 
@@ -56,6 +120,6 @@ code itself is unchanged from the deposited version.
 - conda environment files for user and development installations, and Windows installation scripts
 - MIT license
 
-[Unreleased]: https://github.com/danikiev/PyNetDesign/compare/v1.0.1...HEAD
+[v1.1.0]: https://github.com/danikiev/PyNetDesign/compare/v1.0.1...v1.1.0
 [v1.0.1]: https://github.com/danikiev/PyNetDesign/compare/v1.0.0...v1.0.1
 [v1.0.0]: https://github.com/danikiev/PyNetDesign/releases/tag/v1.0.0

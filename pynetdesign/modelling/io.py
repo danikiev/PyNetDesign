@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import re
 import copy
+from os import PathLike
 from typing import List, Dict, Union
 
 def combine_geometry(*dataframes: pd.DataFrame, names: Union[List[str], Dict[int, str]] = None) -> pd.DataFrame:
@@ -207,7 +208,8 @@ def read_geometry(file_path: str) -> pd.DataFrame:
 
     This function reads a CSV (ASCII) file containing geometry information, ensuring
     that coordinate columns (Latitude/Northing, Longitude/Easting, Elevation) and
-    NoiseLevel column are present. The 'Name' column is optional.     
+    NoiseLevel column are present. The 'Name', 'Surface' and 'Components' columns
+    are optional.
     The resulting DataFrame has columns renamed and units converted as necessary.
     If header has 'GaugeLength=', the appropriate gauge length is read and stored in the attributes.
 
@@ -226,9 +228,12 @@ def read_geometry(file_path: str) -> pd.DataFrame:
         - 'X' for Longitude or Easting (converted to meters)
         - 'Z' for Depth (negative of Elevation, converted to meters)
         - 'NoiseLevel' for Noise Level
+        - 'Surface' for the free surface indicator (if present in the input file)
+        - 'Components' for the recorded station components (if present in the input file)
 
         The DataFrame also includes metadata:
         
+        - ``df.attrs['file_path']``: Path of the file that was read
         - ``df.attrs['original_coord_units']``: Original units of coordinate columns
         - ``df.attrs['noise_type']``: Type of noise measurement
         - ``df.attrs['noise_unit']``: Original unit of noise measurement
@@ -250,8 +255,14 @@ def read_geometry(file_path: str) -> pd.DataFrame:
       m/s^2 (acceleration), and 1/s (strain).
     - The 'Z' column is converted to represent depth (negative of elevation).
     - The 'Name' column, if present, is interpreted as strings.
-    - Only known columns ('Name', 'Latitude', 'Northing', 'Longitude', 'Easting', 
-      'Elevation', 'NoiseLevel') or combinations like 'Latitude/Northing' or 
+    - The 'Surface' column, if present, is a weight in [0, 1] marking receivers at the
+      free surface, where a fractional value blends between no amplification and full
+      free surface amplification.
+    - The 'Components' column, if present, must be '3C' or 'Z' and is only allowed for
+      station geometries, not for DAS geometries.
+    - Only known columns ('Name', 'Latitude', 'Northing', 'Longitude', 'Easting',
+      'Elevation', 'NoiseLevel', 'Surface', 'Components') or combinations like
+      'Latitude/Northing' or
       'Latitude(WGS84)/Northing(m)' are read from the file.
     - For Latitude and Longitude conversion to m is not implemented, inputs are treated as meters
     - The function will raise an error if any unknown columns are present in the input file.
@@ -322,7 +333,7 @@ def read_geometry(file_path: str) -> pd.DataFrame:
     # Check for required columns, known and unknown columns
     required_columns = {'Y': False, 'X': False, 'Z': False, 'NoiseLevel': False}
     # Define known columns
-    known_columns = ['Name', 'Latitude', 'Northing', 'Longitude', 'Easting', 'Elevation', 'NoiseLevel']
+    known_columns = ['Name', 'Latitude', 'Northing', 'Longitude', 'Easting', 'Elevation', 'NoiseLevel', 'Surface', 'Components']
     # Define unknown columns
     unknown_columns = []
     # Default lat/lon flags
@@ -370,7 +381,7 @@ def read_geometry(file_path: str) -> pd.DataFrame:
         raise ValueError(f"Unknown columns found: {', '.join(unknown_columns)}")
 
     # Define data types for each column (float for all except 'Name' which is str)
-    dtype_mapping = {col: str if 'Name' in col else float for col in columns_to_read}
+    dtype_mapping = {col: str if ('Name' in col or 'Components' in col) else float for col in columns_to_read}
 
     # Read the CSV file, using only the known columns
     df = pd.read_csv(file_path, delimiter=r"\s+", dtype=dtype_mapping, usecols=columns_to_read)
@@ -388,6 +399,10 @@ def read_geometry(file_path: str) -> pd.DataFrame:
             column_mapping[col] = 'NoiseLevel'
         elif 'Name' in base_name:
             column_mapping[col] = 'Name'
+        elif 'Surface' in base_name:
+            column_mapping[col] = 'Surface'
+        elif 'Components' in base_name:
+            column_mapping[col] = 'Components'
 
     # Rename the columns
     df.rename(columns=column_mapping, inplace=True)
@@ -448,8 +463,21 @@ def read_geometry(file_path: str) -> pd.DataFrame:
             noise_unit = 'ε'
     else:
         raise ValueError(f"Unrecognized unit for NoiseLevel: {noise_unit}")
-    
+
+    # Check that the surface indicator is a weight between 0 and 1
+    if 'Surface' in df.columns:
+        if not df['Surface'].between(0, 1).all():
+            raise ValueError("Surface values must be in the range of 0 to 1")
+
+    # Check the recorded components of station geometries
+    if 'Components' in df.columns:
+        if gauge_length is not None and df['Components'].notna().any():
+            raise ValueError("Components column is only allowed for station geometries, not DAS geometries.")
+        _validate_geometry_components(df['Components'])
+
     # Edit DataFrame attributes:
+    # Store the path of the file that was read
+    df.attrs['file_path'] = file_path
     # Store original coordinate units in DataFrame attributes
     df.attrs['original_coord_units'] = list(coord_units)[0] if coord_units else None
 
@@ -471,6 +499,226 @@ def read_geometry(file_path: str) -> pd.DataFrame:
     df.attrs['_is_combined'] = False
 
     return df
+
+def _format_geometry_header_value(value: float) -> str:
+    r"""Format header values without introducing unnecessary decimals."""
+    value = float(value)
+    if value.is_integer():
+        return str(int(value))
+    return f"{value:g}"
+
+
+def _get_noise_header_unit(geometry_df: pd.DataFrame) -> str:
+    r"""
+    Infer a writable noise unit for a geometry DataFrame.
+
+    Parameters
+    ----------
+    geometry_df : :obj:`pandas.DataFrame`
+        Geometry DataFrame carrying ``attrs['noise_type']`` or ``attrs['noise_unit']``.
+
+    Returns
+    -------
+    noise_unit : :obj:`str`
+        Unit string to write into the header.
+
+    Raises
+    ------
+    ValueError
+        If neither the noise type nor the noise unit is available.
+    """
+    noise_type = geometry_df.attrs.get('noise_type')
+    if noise_type == 'displacement':
+        return 'm'
+    if noise_type == 'velocity':
+        return 'm/s'
+    if noise_type == 'acceleration':
+        return 'm/s^2'
+    if noise_type == 'strain rate':
+        return '1/s'
+    if noise_type == 'strain':
+        return 'strain'
+
+    noise_unit = geometry_df.attrs.get('noise_unit')
+    if noise_unit is None:
+        raise ValueError(
+            "Geometry DataFrame must define either attrs['noise_type'] or "
+            "attrs['noise_unit'] to be written."
+        )
+    return noise_unit
+
+
+def _validate_geometry_components(components):
+    r"""Validate that recorded components are either ``'3C'`` or ``'Z'``."""
+    component_values = pd.Series(components).dropna()
+    invalid_components = sorted(set(component_values).difference({'3C', 'Z'}))
+    if invalid_components:
+        invalid_text = ', '.join(str(value) for value in invalid_components)
+        raise ValueError(
+            "Components values must be either '3C' or 'Z'. "
+            f"Invalid values: {invalid_text}"
+        )
+
+
+def _geometry_dataframe_to_lines(geometry_df: pd.DataFrame) -> List[str]:
+    r"""
+    Convert a geometry DataFrame into lines that :func:`read_geometry` can read back.
+
+    Parameters
+    ----------
+    geometry_df : :obj:`pandas.DataFrame`
+        Non-combined geometry DataFrame.
+
+    Returns
+    -------
+    lines : :obj:`list` of :obj:`str`
+        Header line followed by one line per station.
+
+    Raises
+    ------
+    ValueError
+        If the geometry is combined, required columns are missing, or a
+        ``Components`` column is present on a DAS geometry.
+
+    Notes
+    -----
+    ``Z`` is written back as an elevation, that is with the opposite sign, so that a
+    round trip through :func:`read_geometry` reproduces the original coordinates.
+    """
+    if is_combined_geometry(geometry_df):
+        raise ValueError("Geometry must not be combined to save it to a single file.")
+
+    required_columns = {'Y', 'X', 'Z', 'NoiseLevel'}
+    missing_columns = required_columns.difference(geometry_df.columns)
+    if missing_columns:
+        missing = ', '.join(sorted(missing_columns))
+        raise ValueError(f"Geometry DataFrame is missing required columns: {missing}")
+
+    export_columns = {}
+    if 'Name' in geometry_df.columns and not geometry_df['Name'].isna().all():
+        export_columns['Name'] = geometry_df['Name']
+
+    export_columns['Northing(m)'] = geometry_df['Y']
+    export_columns['Easting(m)'] = geometry_df['X']
+    export_columns['Elevation(m)'] = -geometry_df['Z']
+    export_columns[f"NoiseLevel({_get_noise_header_unit(geometry_df)})"] = (
+        geometry_df['NoiseLevel']
+    )
+
+    if 'Surface' in geometry_df.columns and not geometry_df['Surface'].isna().all():
+        export_columns['Surface'] = geometry_df['Surface']
+
+    if 'Components' in geometry_df.columns and not geometry_df['Components'].isna().all():
+        if geometry_df.attrs.get('gauge_length') is not None:
+            raise ValueError("Components column is only allowed for station geometries, not DAS geometries.")
+        _validate_geometry_components(geometry_df['Components'])
+        export_columns['Components'] = geometry_df['Components']
+
+    export_df = pd.DataFrame(export_columns, index=geometry_df.index)
+
+    header = '\t'.join(export_df.columns.tolist())
+    gauge_length = geometry_df.attrs.get('gauge_length')
+    if gauge_length is not None:
+        header += f"\tGaugeLength={_format_geometry_header_value(gauge_length)}(m)"
+
+    if export_df.empty:
+        return [header]
+
+    data_text = export_df.to_csv(
+        sep='\t',
+        index=False,
+        header=False,
+        lineterminator='\n',
+        float_format='%.12g',
+    )
+    return [header, *data_text.rstrip('\n').splitlines()]
+
+
+def save_geometry(geometry: Union[List[str], pd.DataFrame], file_path: Union[str, PathLike]):
+    r"""
+    Save geometry to disk in a format compatible with :func:`read_geometry`.
+
+    Accepts either the geometry text lines returned by the generators in
+    :mod:`pynetdesign.modelling.geometry` or a geometry :obj:`pandas.DataFrame`
+    previously read by :func:`read_geometry`.
+
+    Parameters
+    ----------
+    geometry : :obj:`list` of :obj:`str` or :obj:`pandas.DataFrame`
+        Geometry content to write.
+    file_path : :obj:`str` or path-like
+        Output file path.
+
+    Returns
+    -------
+    file_path : :obj:`str` or path-like
+        The output path, returned for convenience.
+
+    Raises
+    ------
+    ValueError
+        If the geometry content is empty or invalid for writing.
+    TypeError
+        If ``geometry`` is neither a list of strings nor a geometry DataFrame.
+    """
+    if isinstance(geometry, pd.DataFrame):
+        geometry_lines = _geometry_dataframe_to_lines(geometry)
+    elif isinstance(geometry, list):
+        geometry_lines = geometry
+        if not geometry_lines:
+            raise ValueError("geometry lines must not be empty.")
+        if not all(isinstance(line, str) for line in geometry_lines):
+            raise TypeError("geometry lines must contain only strings.")
+    else:
+        raise TypeError(
+            "geometry must be either a list of strings or a pandas DataFrame."
+        )
+
+    with open(file_path, 'w') as f:
+        f.write('\n'.join(geometry_lines))
+
+    return file_path
+
+
+def decimate_geometry(geometry_df: pd.DataFrame, step: int) -> pd.DataFrame:
+    r"""
+    Decimate a non-combined geometry by keeping every ``step``-th station.
+
+    This is useful for checking how the channel spacing of a dense DAS array
+    affects sensitivity, by thinning an existing geometry rather than regenerating it.
+
+    Parameters
+    ----------
+    geometry_df : :obj:`pandas.DataFrame`
+        The input geometry, with one row per station and metadata in ``attrs``.
+    step : :obj:`int`
+        Decimation factor, so that ``step=5`` keeps rows 0, 5, 10 and so on.
+
+    Returns
+    -------
+    decimated_geometry_df : :obj:`pandas.DataFrame`
+        New geometry with every ``step``-th station, the index reset and all
+        original ``attrs`` preserved.
+
+    Raises
+    ------
+    ValueError
+        If ``step`` is not a positive integer, or if the geometry is combined.
+    """
+    if not isinstance(step, int) or isinstance(step, bool) or step < 1:
+        raise ValueError(f"Decimation step must be a positive integer, got {step!r}")
+
+    if is_combined_geometry(geometry_df):
+        raise ValueError("The input DataFrame is a combined one. Decimation is not supported for combined DataFrames.")
+
+    # Select every step-th row
+    decimated_geometry_df = geometry_df.iloc[::step].reset_index(drop=True).copy()
+
+    # Preserve metadata
+    decimated_geometry_df.attrs = geometry_df.attrs.copy()
+
+    return decimated_geometry_df
+
 
 def read_velocity(file_path: str):
     r"""

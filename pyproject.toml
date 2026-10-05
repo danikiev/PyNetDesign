@@ -1,6 +1,6 @@
 [build-system]
 requires = [
-    "setuptools >= 65",
+    "setuptools >= 77",
     "setuptools_scm[toml]",
     "wheel",
 ]
@@ -10,30 +10,65 @@ build-backend = "setuptools.build_meta"
 name = "pynetdesign"
 description = "Python framework for microseismic monitoring network design"
 readme = "README.md"
-authors = [    
+requires-python = ">=3.9,<3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
     {name = "Denis Anikiev", email = "danikiev@gmail.com"},
 ]
-keywords = ["geophysics", "microseismic"]
+keywords = [
+    "geophysics",
+    "seismology",
+    "microseismic",
+    "monitoring network design",
+    "distributed acoustic sensing",
+]
 classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
-    "numpy",
+    "numpy>=1.20",
     "pandas",
     "matplotlib",
     "cmcrameri",
 ]
 dynamic = ["version"]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ipython",
+    "jupyter",
+    "ipywidgets",
+    "setuptools_scm",
+]
+docs = [
+    "sphinx",
+    "pydata-sphinx-theme",
+    "sphinx-gallery",
+    "sphinxcontrib-bibtex",
+    "sphinx-design",
+    "numpydoc",
+]
+
+[project.urls]
+Homepage = "https://github.com/danikiev/PyNetDesign"
+Documentation = "https://danikiev.github.io/PyNetDesign/"
+Repository = "https://github.com/danikiev/PyNetDesign"
+Issues = "https://github.com/danikiev/PyNetDesign/issues"
+Changelog = "https://github.com/danikiev/PyNetDesign/blob/main/CHANGELOG.md"
+
 [tool.setuptools.packages.find]
-exclude = ["pytests", "tests"]
+exclude = ["pytests", "tests", "examples", "data", "docs"]
 
 [tool.setuptools_scm]
 version_file = "pynetdesign/version.py"
