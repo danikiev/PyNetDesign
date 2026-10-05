@@ -20,13 +20,14 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: true
-
 jobs:
   build-docs:
     runs-on: ubuntu-latest
+    # A newer push to the same branch supersedes a build that is still running. Builds of
+    # different refs never cancel each other, so a dev push cannot cancel a main or tag build
+    concurrency:
+      group: docs-${{ inputs.ref || github.ref }}
+      cancel-in-progress: true
 
     steps:
       - name: Checkout
@@ -46,7 +47,8 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          # Sphinx 9.1 requires Python 3.12; pytest.yml tests the package on 3.9 to 3.12
+          python-version: "3.12"
 
       - name: Install system dependencies for the PDF build
         run: |
@@ -106,6 +108,10 @@ jobs:
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     needs: build-docs
     runs-on: ubuntu-latest
+    # Deployments run one at a time, and one that has started always completes
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
