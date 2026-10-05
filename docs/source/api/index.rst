@@ -208,3 +208,8 @@ Visualization utilities
    generate_colorscale
    is_notebook
    check_spyder
+
+.. only:: latex
+
+   .. bibliography::
+      :style: unsrt

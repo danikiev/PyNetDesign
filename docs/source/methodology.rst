@@ -623,17 +623,11 @@ Hence
 
 ----
 
-References
-==========
+.. only:: html
 
-.. raw:: latex
+   References
+   ==========
 
-   \begin{localbibliography}
-
-.. bibliography::
-   :style: unsrt
-   :filter: docname in docnames
-
-.. raw:: latex
-
-   \end{localbibliography}
+   .. bibliography::
+      :style: unsrt
+      :filter: docname in docnames

@@ -7,7 +7,6 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
-import sphinx.builders.latex.transforms as latex_transforms
 from sphinx_gallery.sorting import ExampleTitleSortKey
 
 DOCS_SOURCE = Path(__file__).resolve().parent
@@ -52,6 +51,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_design",
     "sphinxcontrib.bibtex",
+    "_ext.bibliography",
     "matplotlib.sphinxext.plot_directive",
     "numpydoc",
     "sphinx_gallery.gen_gallery",
@@ -220,13 +220,6 @@ latex_elements = {
 \usepackage{csquotes}
 \usepackage[titles]{tocloft}
 \usepackage{qrcode}
-% The reference list of one page, typeset in place under its References heading:
-% thebibliography without the chapter heading and the running heads it would add
-\makeatletter
-\newenvironment{localbibliography}
-  {\def\chapter##1##2{}\let\@mkboth\@gobbletwo\begin{thebibliography}{99}}
-  {\end{thebibliography}}
-\makeatother
 \AtEndDocument{%
 \clearpage
 \thispagestyle{empty}
@@ -262,19 +255,3 @@ latex_elements = {
 # lualatex handles the unicode used in the methodology and the bibliography
 latex_engine = "lualatex"
 latex_use_xindy = False
-
-
-# Keep each reference list where the HTML shows it, under the References heading of its
-# page. By default the LaTeX builder gathers every citation into one Bibliography chapter
-# at the end of the PDF, which leaves those headings empty and lists the works cited on
-# both pages twice. This is the workaround from the sphinxcontrib-bibtex documentation
-# ("Mismatch Between Output of HTML/Text and LaTeX Backends"). Every citation must then
-# sit between raw LaTeX \begin{localbibliography} and \end{localbibliography}, as the
-# bibliography directives in methodology.rst and credits.rst do; any other citation,
-# such as a numpydoc ".. [1]" reference in a docstring, stops LaTeX with "Lonely \item".
-class _KeepCitationsInPlace(latex_transforms.BibliographyTransform):
-    def run(self, **kwargs):
-        pass
-
-
-latex_transforms.BibliographyTransform = _KeepCitationsInPlace

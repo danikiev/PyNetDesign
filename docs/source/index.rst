@@ -52,14 +52,17 @@ rely on `Pandas <https://pandas.pydata.org/>`_, and visualization is based on
    :hidden:
    :caption: Project
 
-   changelog.rst
    citing.rst
    contributing.rst
+   changelog.rst
    credits.rst
 
 .. only:: html
 
-   .. grid:: 1 2 4 4
+   **Quick Links:**
+
+   .. grid:: 1 2 2 2
+      :gutter: 3
 
       .. grid-item-card::
          :link: getting_started
@@ -97,7 +100,44 @@ rely on `Pandas <https://pandas.pydata.org/>`_, and visualization is based on
          ^^^
          Reference documentation for every public function.
 
+      .. grid-item-card::
+         :link: citing
+         :link-type: doc
+         :link-alt: Citing
+
+         :fas:`quote-right;pst-color-primary` **Citing**
+         ^^^
+         Find citation information and BibTeX entries for referencing PyNetDesign in your research.
+
+      .. grid-item-card::
+         :link: contributing
+         :link-type: doc
+         :link-alt: Contributing
+
+         :fas:`code-pull-request;pst-color-primary` **Contributing**
+         ^^^
+         Report issues, propose changes and set up a development environment.
+
+      .. grid-item-card::
+         :link: changelog
+         :link-type: doc
+         :link-alt: Changelog
+
+         :fas:`clock-rotate-left;pst-color-primary` **Changelog**
+         ^^^
+         Review release notes and notable changes across versions.
+
+      .. grid-item-card::
+         :link: credits
+         :link-type: doc
+         :link-alt: Credits
+
+         :fas:`users;pst-color-primary` **Credits**
+         ^^^
+         Acknowledge authors, contributors and used libraries in the development of PyNetDesign.
+
    .. grid:: 1
+      :gutter: 3
 
       .. grid-item-card::
          :link: _static/pynetdesign.pdf
