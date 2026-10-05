@@ -52,15 +52,17 @@ if %ERRORLEVEL% neq 0 (
     exit /b 2
 )
 
+rem Inside a ( ) block %ERRORLEVEL% is expanded once, when the block is read, before
+rem any command in it runs; so the checks within blocks use "if errorlevel 1" instead.
 if %BUILD_PDF% equ 1 (
     where lualatex >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo lualatex not found in PATH, which is required for the PDF build.
         echo Install a LaTeX distribution, or drop -pdf to build the HTML only.
         exit /b 2
     )
     where latexmk >nul 2>nul
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo latexmk not found in PATH, which is required for the PDF build.
         echo Install a LaTeX distribution, or drop -pdf to build the HTML only.
         exit /b 2
@@ -71,7 +73,7 @@ if %CLEAN% equ 1 (
     echo ##################################################################
     echo Cleaning...
     call python -m sphinx -M clean %SOURCE_DIR% %BUILD_DIR%
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo Error while cleaning!
         exit /b 1
     )
@@ -89,7 +91,7 @@ if %BUILD_PDF% equ 1 (
     echo ##################################################################
     echo Generating LaTeX...
     call python -m sphinx -M latex %SOURCE_DIR% %BUILD_DIR% %SPHINXOPTS%
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo Error while generating LaTeX!
         exit /b 1
     )
@@ -100,7 +102,7 @@ if %BUILD_PDF% equ 1 (
     rem engine (lualatex) and the python.ist index style, so -pdf resolves to lualatex here.
     pushd %BUILD_DIR%\latex
     call latexmk -pdf -dvi- -ps- -interaction=nonstopmode -halt-on-error %TEX_NAME%
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo Error during PDF build process!
         echo See %BUILD_DIR%\latex\pynetdesign.log for the LaTeX output.
         popd
@@ -117,7 +119,7 @@ if %BUILD_PDF% equ 1 (
     echo Copying the PDF into the HTML tree...
     if not exist %BUILD_DIR%\html\_static mkdir %BUILD_DIR%\html\_static
     copy /y %BUILD_DIR%\latex\%PDF_NAME% %BUILD_DIR%\html\_static\%PDF_NAME% >nul
-    if %ERRORLEVEL% neq 0 (
+    if errorlevel 1 (
         echo Error while copying the PDF!
         exit /b 2
     )

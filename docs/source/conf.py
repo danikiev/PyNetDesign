@@ -201,6 +201,17 @@ latex_logo = "_static/pynetdesign-logo.png"
 
 latex_elements = {
     "releasename": "version",
+    # Sphinx 9.1.0 tables in the default 'colorrows' style stop the PDF build with
+    # "TeX capacity exceeded" since the June 2026 LaTeX release: with array v2.7,
+    # colortbl no longer keeps its own \everycr, which the Sphinx row colouring relies
+    # on (sphinx-doc/sphinx#14465). Where array v2.7 is installed, load the earlier
+    # array and longtable releases before sphinx.sty, as Sphinx 9.1.1 does itself.
+    "passoptionstopackages": r"""
+\IfFileExists{array-2024-06-01.sty}{%
+  \RequirePackage{array}[=v2.6]%
+  \RequirePackage{longtable}[=v4.13]%
+}{}
+""",
     "preamble": r"""
 \usepackage{csquotes}
 \usepackage[titles]{tocloft}
