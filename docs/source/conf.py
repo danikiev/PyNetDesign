@@ -7,6 +7,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as pkg_version
 from pathlib import Path
 
+import sphinx.builders.latex.transforms as latex_transforms
 from sphinx_gallery.sorting import ExampleTitleSortKey
 
 DOCS_SOURCE = Path(__file__).resolve().parent
@@ -201,6 +202,9 @@ latex_logo = "_static/pynetdesign-logo.png"
 
 latex_elements = {
     "releasename": "version",
+    # The PDF is read on screen, so a chapter starts on the next page instead of the
+    # next right-hand one, which could leave a blank page before it
+    "extraclassoptions": "openany",
     # Sphinx 9.1.0 tables in the default 'colorrows' style stop the PDF build with
     # "TeX capacity exceeded" since the June 2026 LaTeX release: with array v2.7,
     # colortbl no longer keeps its own \everycr, which the Sphinx row colouring relies
@@ -216,6 +220,13 @@ latex_elements = {
 \usepackage{csquotes}
 \usepackage[titles]{tocloft}
 \usepackage{qrcode}
+% The reference list of one page, typeset in place under its References heading:
+% thebibliography without the chapter heading and the running heads it would add
+\makeatletter
+\newenvironment{localbibliography}
+  {\def\chapter##1##2{}\let\@mkboth\@gobbletwo\begin{thebibliography}{99}}
+  {\end{thebibliography}}
+\makeatother
 \AtEndDocument{%
 \clearpage
 \thispagestyle{empty}
@@ -251,3 +262,19 @@ latex_elements = {
 # lualatex handles the unicode used in the methodology and the bibliography
 latex_engine = "lualatex"
 latex_use_xindy = False
+
+
+# Keep each reference list where the HTML shows it, under the References heading of its
+# page. By default the LaTeX builder gathers every citation into one Bibliography chapter
+# at the end of the PDF, which leaves those headings empty and lists the works cited on
+# both pages twice. This is the workaround from the sphinxcontrib-bibtex documentation
+# ("Mismatch Between Output of HTML/Text and LaTeX Backends"). Every citation must then
+# sit between raw LaTeX \begin{localbibliography} and \end{localbibliography}, as the
+# bibliography directives in methodology.rst and credits.rst do; any other citation,
+# such as a numpydoc ".. [1]" reference in a docstring, stops LaTeX with "Lonely \item".
+class _KeepCitationsInPlace(latex_transforms.BibliographyTransform):
+    def run(self, **kwargs):
+        pass
+
+
+latex_transforms.BibliographyTransform = _KeepCitationsInPlace

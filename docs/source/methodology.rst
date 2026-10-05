@@ -626,6 +626,14 @@ Hence
 References
 ==========
 
+.. raw:: latex
+
+   \begin{localbibliography}
+
 .. bibliography::
    :style: unsrt
    :filter: docname in docnames
+
+.. raw:: latex
+
+   \end{localbibliography}
