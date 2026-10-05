@@ -5,7 +5,9 @@ import re
 
 
 _LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
-_INLINE_CODE_RE = re.compile(r"`([^`]+)`")
+# A markdown code span closes with as many backticks as it opened with, so both `x`
+# and ``x`` become an rst literal
+_INLINE_CODE_RE = re.compile(r"(`+)(.+?)\1")
 # Keep a Changelog writes a version heading as a link reference, "## [v1.1.0] - date",
 # that a "[v1.1.0]: url" definition at the end of the file resolves
 _LINK_DEFINITION_RE = re.compile(r"^\[([^\]]+)\]:\s*(\S+)\s*$")
@@ -33,7 +35,7 @@ and this project adheres to `Semantic Versioning <https://semver.org/spec/v2.0.0
 
 
 def _convert_inline_markdown(text: str) -> str:
-    text = _INLINE_CODE_RE.sub(r"``\1``", text)
+    text = _INLINE_CODE_RE.sub(r"``\2``", text)
     return _LINK_RE.sub(r"`\1 <\2>`_", text)
 
 
