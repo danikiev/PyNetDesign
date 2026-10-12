@@ -5,7 +5,7 @@ All notable changes to PyNetDesign will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v1.1.0] - 2026-10-05
+## [v1.1.0] - 2026-10-12
 
 Feature release: phase-resolved wave modes, per-receiver free surface and receiver
 projection, synthetic geometry builders, a documentation site in HTML and PDF, and
@@ -31,8 +31,8 @@ branding.
 - `methodology.rst` documenting the theory actually implemented: spectral conventions, the attenuation operator, the peak frequency, the detection threshold and its conversion coefficients, the free surface correction, receiver projection and DAS directionality, the radiation pattern with the full root-mean-square derivation, the homogeneous seismic moment relation with a standalone derivation from the far-field point source, and the network detectability criterion
 - `docs/source/references.bib` with the seven works cited from the docstrings and the methodology, so the `:cite:` roles added earlier now resolve
 - `citing`, `contributing` and `credits` documentation pages, plus a changelog page that is generated from `CHANGELOG.md` when the documentation is built, so the changelog has a single source and the generated page is not committed. On that page each version links to its changes on GitHub. These pages follow the main chapters in the order Citing, Contributing, Changelog, Credits
-- `docs.yml` workflow building the documentation on every push and deploying it to GitHub Pages from `main` and from release tags, including a check that the built version matches the tag
-- `push-tag.yml` workflow, so that pushing a `vX.Y.Z` tag validates it and publishes versioned documentation
+- `docs.yml` workflow building the documentation on every push and deploying it to GitHub Pages from `main`, including a check that the built version matches the tag and, after each deployment, a check that the live site shows the deployed version
+- `push-tag.yml` workflow, so that pushing a `vX.Y.Z` tag validates it and starts a `docs.yml` run on `main` that publishes the documentation of that tag. The run is on `main` because GitHub Pages ignores a deployment made from a tag when `main` has already deployed the same commit ([actions/deploy-pages#383](https://github.com/actions/deploy-pages/issues/383))
 - `build-docs.bat` and `build-docs.sh` for building the documentation, and `serve-docs.bat` and `serve-docs.sh` for viewing it locally. `serve-docs` rebuilds incrementally before serving, so only the pages that changed are regenerated, and accepts `--port` and `--no-build`. Both accept `SPHINXOPTS`, and neither needs `make`: they call `python -m sphinx -M` directly. Both also take `--pdf`, which builds the PDF edition and places it where the documentation links to it
 - a PDF edition of the documentation, produced from the same sources through lualatex and linked from the site header and the front page, so the whole manual can be read offline as one file. Each web page keeps its own reference list, while the PDF lists the cited works once, in a bibliography at its end that its citations link to. `docs.yml` builds it on every run, publishes it with the site and keeps a copy as a workflow artifact
 - `install.sh` and `uninstall.sh`, the Linux and macOS counterparts of the existing Windows scripts. `install.sh` takes `--dev` or `--no-dev` to answer the development-tools question in advance, and `uninstall.sh` takes `--yes`

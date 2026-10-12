@@ -7,8 +7,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
   validate-tag:
@@ -18,12 +16,20 @@ jobs:
     permissions:
       contents: read
 
+  # GitHub Pages ignores a deployment made from a tag when main has already deployed the same
+  # commit (actions/deploy-pages#383), and main deploys each merge before it is tagged. A Docs
+  # run on main therefore builds the tag and deploys it
   docs:
     needs: validate-tag
-    uses: ./.github/workflows/docs.yml
-    with:
-      ref: ${{ needs.validate-tag.outputs.ref }}
+    runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pages: write
-      id-token: write
+      actions: write
+    steps:
+      - name: Start the Docs workflow on main for the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_REF: ${{ needs.validate-tag.outputs.ref }}
+        run: |
+          gh workflow run docs.yml --ref main -f ref="$TAG_REF"
+          echo "Started a Docs run on main for $TAG_REF: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/docs.yml" >> "$GITHUB_STEP_SUMMARY"

@@ -31,6 +31,9 @@ version such as `1.0.1.dev3+g1a2b3c4`.
    git push origin vX.Y.Z
    ```
 
+   Pushing the tag also publishes the documentation of the release; see
+   [Documentation](#documentation).
+
 6. Verify the version resolves correctly before publishing:
 
    ```bash
@@ -51,6 +54,8 @@ version such as `1.0.1.dev3+g1a2b3c4`.
 | `validate-zenodo.yml` | push / PR on `main`, `dev`; reusable | Validates `.zenodo.json` against the Zenodo schema |
 | `validate-tag.yml` | reusable only | Enforces strict semver and that the tag is contained in `main` |
 | `release-on-published.yml` | GitHub Release `published` | Validates the tag, validates the Zenodo metadata, then builds and checks the distributions |
+| `docs.yml` | push on `main`, `dev`; `workflow_dispatch` | Builds the HTML and PDF documentation; runs on `main` deploy it to GitHub Pages and check the version the live site serves |
+| `push-tag.yml` | push of a `v*` tag | Validates the tag, then starts a `docs.yml` run on `main` that builds and deploys the documentation of the tag |
 
 `release-on-published.yml` also accepts a `workflow_dispatch` with a `tag` input, so a
 release can be re-validated without republishing it.
@@ -61,6 +66,44 @@ Notes:
 - Tag validation is shared through `validate-tag.yml`, so the same rules apply to every
   workflow that acts on a tag.
 - PyNetDesign is not published to PyPI. Installation is from source; see `README.md`.
+
+## Documentation
+
+The documentation is published to GitHub Pages at <https://danikiev.github.io/PyNetDesign/>.
+Only `docs.yml` runs on `main` deploy it: a push to `main` publishes a development version,
+and pushing a release tag starts a run on `main` that builds the tag and publishes it. Every
+deployment ends by reading the version back from the live site, and fails if it differs.
+
+A release is deployed by a run on `main`, not by a run on the tag, because GitHub Pages
+ignores a deployment made from a tag when `main` has already deployed the same commit, and
+still reports it as successful
+([actions/deploy-pages#383](https://github.com/actions/deploy-pages/issues/383)). The
+release tag always sits on a merge commit that `main` deployed when it was merged.
+
+### Deploying the docs manually
+
+Use this when the live site shows the wrong version, for example when the
+`Check the deployed version` step of a `Docs` run failed, or to republish a release:
+
+1. On GitHub, open **Actions → Docs → Run workflow**.
+2. Keep **Use workflow from** at `main`. Runs on any other branch or on a tag build the
+   documentation but do not deploy it.
+3. Set **ref** to the release tag, for example `refs/tags/v1.1.0`, or leave it empty to
+   publish the current `main`.
+4. Click **Run workflow**. The run builds the documentation from **ref**, checks that the
+   documentation of a tag carries its version, deploys it and checks the live site.
+
+The same from a terminal, with the GitHub CLI:
+
+```bash
+gh workflow run docs.yml --ref main -f ref=refs/tags/v1.1.0
+```
+
+To see which version the live site serves (the query string bypasses the CDN cache):
+
+```bash
+curl -s "https://danikiev.github.io/PyNetDesign/_static/documentation_options.js?$(date +%s)" | grep VERSION
+```
 
 ## Zenodo
 
