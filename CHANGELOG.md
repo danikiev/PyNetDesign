@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `plot_sensitivity_slice` with `plt_style='imshow'` now centres each pixel on its grid node (#9). The image extent ran from the first to the last node, so the pixels were narrower than the node spacing and the outer ones sat up to half a step inside their nodes, out of line with the contours and the stations. Descending coordinate vectors were also drawn reversed. The new `get_imshow_extent` places the extent half a step beyond the first and last nodes, and the axis limits stay at the grid limits
+- `plot_sensitivity_slice` with `plt_style='imshow'` now applies `clb_range` to the image and its colorbar (#10). The range was assigned to `ax.set_clim`, which `Axes` does not have, so the assignment only created an attribute, and `imshow` received no `vmin` or `vmax`. The colour scale therefore always followed the data
 
 ## [v1.1.0] - 2026-10-12
 

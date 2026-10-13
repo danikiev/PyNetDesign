@@ -153,6 +153,7 @@ def plot_sensitivity_slice(sens_data: np.ndarray,
     pdata = np.transpose(sens_data)
 
     # Check and set colorbar range
+    vmin = vmax = None
     if clb_range is not None:
         # Check if clb_range is a tuple with two values
         if (not isinstance(clb_range, tuple) or 
@@ -160,8 +161,8 @@ def plot_sensitivity_slice(sens_data: np.ndarray,
                 not contains_only_numeric(clb_range)):
             raise ValueError("clb_range must be a tuple with two numeric values")
         else:            
-            ax.set_clim = clb_range
-            levels = np.linspace(clb_range[0],clb_range[1],plt_levels)
+            vmin, vmax = clb_range
+            levels = np.linspace(vmin, vmax, plt_levels)
     else:
         levels = plt_levels
            
@@ -172,7 +173,9 @@ def plot_sensitivity_slice(sens_data: np.ndarray,
         im = ax.imshow(pdata,
                        origin='lower',
                        extent=extent,
-                       cmap=cmap)
+                       cmap=cmap,
+                       vmin=vmin,
+                       vmax=vmax)
     else:
         raise ValueError("Unknown plot style: " + plt_style)
 
