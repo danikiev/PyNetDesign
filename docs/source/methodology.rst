@@ -242,12 +242,44 @@ The amplitude correction for phase :math:`\phi` and receiver direction :math:`\m
    \frac{1}{|\mathbf d \cdot \mathbf e_\phi|},
 
 where :math:`\mathbf d` is :math:`\hat{\mathbf z}` for vertical-component geophones and :math:`\boldsymbol\tau` for DAS.
-:math:`\mathbf e_P` is the longitudinal P polarization, :math:`\mathbf e_{SV}` is the transverse polarization in the local vertical ray plane, and :math:`\mathbf e_{SH}` is perpendicular to that plane.
+The polarization unit vectors follow from the unit ray direction :math:`\mathbf n` at the receiver and the vertical axis :math:`\hat{\mathbf z}`, positive down:
+
+.. math::
+   :label: polarization_basis
+
+   \mathbf e_P = \mathbf n,
+   \qquad
+   \mathbf e_{SH} = \frac{\hat{\mathbf z}\times\mathbf n}{|\hat{\mathbf z}\times\mathbf n|},
+   \qquad
+   \mathbf e_{SV} = \mathbf e_{SH}\times\mathbf n.
+
+:math:`\mathbf e_P` is the longitudinal P polarization, along the ray.
+:math:`\mathbf e_{SV}` is transverse to the ray and lies in the vertical ray plane, the vertical plane that contains the ray.
+:math:`\mathbf e_{SH}` is transverse to the ray and horizontal, perpendicular to that plane.
+The signs of the vectors do not matter, because :math:`C_\phi` depends only on :math:`|\mathbf d\cdot\mathbf e_\phi|`.
+The figure below shows the particle motion of each phase and what a vertical sensor records of it.
+
+.. figure:: figures/p_sv_sh_waves.*
+   :name: fig_p_sv_sh_waves
+   :width: 100%
+   :alt: Blocks of rock deformed by P, SV and SH waves, the polarization vectors at a receiver in a vertical well, and the fraction of each polarization that a vertical sensor records.
+
+   Polarization of P, SV and SH body waves.
+
+   (a)–(c) A block of the medium deformed by a harmonic plane wave that travels along a horizontal ray, shown at one instant with exaggerated displacement.
+   The front face of each block lies in the vertical ray plane, and dashed lines mark edges at rest.
+   P-wave particles move along the ray and alternately compress and dilate the medium.
+   SV-wave particles move across the ray within the vertical ray plane, which for a horizontal ray means up and down.
+   SH-wave particles move across the ray horizontally, out of the vertical ray plane.
+   (d) For an inclined ray from a source S to a receiver R in a vertical well, :math:`\mathbf e_P` follows the ray, :math:`\mathbf e_{SV}` tilts with it inside the vertical ray plane, and :math:`\mathbf e_{SH}` stays horizontal.
+   (e) A sensor with a vertical axis, :math:`\mathbf d=\hat{\mathbf z}`, records the fraction :math:`|\cos i|` of the P displacement, :math:`|\sin i|` of the SV displacement and none of the SH displacement, where :math:`i` is the incidence angle from the vertical.
+   This holds for a vertical-component geophone and for a DAS channel in a vertical well.
+
 The corrected minimum recorded amplitude is multiplied by :math:`C_\phi`.
 For composite ``S`` mode, SV and SH are corrected separately and the more detectable branch is retained.
 
 If the projection is zero, that phase is not observable on the selected receiver component for that source-station pair.
-For example, SH is horizontal in the current isotropic convention and is therefore not recorded by a vertical-component geophone.
+For example, SH is horizontal in the current isotropic convention and is therefore not recorded by a vertical-component geophone or by DAS in a vertical well.
 
 For nearly vertical rays, the explicit SV/SH azimuthal basis is convention-dependent because the horizontal ray azimuth is poorly defined.
 PyNetDesign uses a stable horizontal fallback basis in this case; the composite ``S`` mode is the practical robust choice when only S-wave detectability is required.

@@ -371,4 +371,5 @@ through a borehole DAS array and plots it:
 ``wave_mode`` selects the phases: ``'P'``, ``'SV'``, ``'SH'``, ``'S'`` for the composite
 S branch, or ``'PS'`` for joint P and S detection. See Section
 :ref:`network_detectability` for how the per-receiver thresholds are combined, and the
-:ref:`examples <examples>` for complete scripts.
+:ref:`examples <examples>` for complete scripts. Section :ref:`das_directionality`
+illustrates the P, SV and SH polarizations.
