@@ -1,4 +1,5 @@
 import matplotlib.colors as mcolors
+import numpy as np
 import pandas as pd
 
 def generate_colorscale(cmap: mcolors.Colormap, ncolors: int) -> list:
@@ -45,8 +46,37 @@ def generate_colorscale(cmap: mcolors.Colormap, ncolors: int) -> list:
         [i / (ncolors - 1), 'rgb({}, {}, {})'.format(*(int(255 * v) for v in cmap(i / (ncolors - 1))[:3]))]
         for i in range(ncolors)
     ]
-    
+
     return colorscale
+
+def get_imshow_extent(ci1: np.ndarray, ci2: np.ndarray) -> tuple:
+    r"""
+    Determine the ``imshow`` extent that centres each pixel on its grid node.
+
+    ``imshow`` spreads the pixels of a row evenly over the extent, so the extent
+    has to reach half a grid step beyond the first and last nodes. The extent
+    follows the order of the coordinate vectors, so with ``origin='lower'`` the
+    first row and column are drawn at the first coordinates also for descending
+    vectors. ``imshow`` assumes uniform spacing; the mean step of each vector is used.
+
+    Parameters
+    ----------
+    ci1 : :obj:`numpy.ndarray`
+        Coordinates of the image columns (horizontal axis of the plot).
+    ci2 : :obj:`numpy.ndarray`
+        Coordinates of the image rows (vertical axis of the plot).
+
+    Returns
+    -------
+    :obj:`tuple`
+        Tuple ``(left, right, bottom, top)`` for ``imshow`` with ``origin='lower'``.
+    """
+    def _edges(coords):
+        coords = np.asarray(coords, dtype=float)
+        half_step = (coords[-1] - coords[0]) / (len(coords) - 1) / 2
+        return float(coords[0] - half_step), float(coords[-1] + half_step)
+
+    return (*_edges(ci1), *_edges(ci2))
 
 def is_notebook() -> bool:
     r"""

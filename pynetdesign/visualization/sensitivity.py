@@ -1,4 +1,5 @@
 from pynetdesign.modelling.utils import *
+from pynetdesign.visualization.utils import get_imshow_extent
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -138,8 +139,8 @@ def plot_sensitivity_slice(sens_data: np.ndarray,
         ax.set_xlabel('X Coordinate')
         ax.set_ylabel('Z Coordinate')
 
-    # Set extent
-    extent = (ci1.min(), ci1.max(), ci2.min(), ci2.max())
+    # Set extent so that the imshow pixels are centred on the grid nodes
+    extent = get_imshow_extent(ci1, ci2)
 
     # Check data dimensions and reshape if needed
     if sens_data.ndim==1:
